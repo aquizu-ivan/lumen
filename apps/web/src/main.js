@@ -77,7 +77,7 @@ async function init() {
   if (!overviewResult.ok) {
     setError(overviewEl, overviewResult);
   } else {
-    renderOverview(overviewResult.data);
+    renderOverview(overviewResult.data.data);
   }
 }
 
