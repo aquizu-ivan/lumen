@@ -1,0 +1,10 @@
+{
+  "name": "lumen",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "build": "pnpm -r run build",
+    "lint": "pnpm -r run lint"
+  }
+}
