@@ -4,7 +4,7 @@
   "packageManager": "pnpm@9.0.0",
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "build": "pnpm -r run build",
+    "build": "pnpm -C apps/api run build",
     "lint": "pnpm -r run lint",
     "start": "pnpm -C apps/api run start"
   }

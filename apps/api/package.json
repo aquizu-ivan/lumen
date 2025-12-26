@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "echo build-ok",
     "dev": "node src/server.js",
     "start": "node src/server.js"
   },
