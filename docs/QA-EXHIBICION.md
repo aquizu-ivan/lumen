@@ -12,3 +12,8 @@
 3) Abrir /health y /meta y validar campos clave
 4) Abrir /metrics/overview en browser o curl y validar campos clave
 5) Probar from/to fuera de rango y validar total 0 y noShowRate 0
+
+## PROD (Pages + Railway) — TICKET-02
+- URL Pages: https://USUARIO.github.io/lumen/
+- La web debe apuntar a Railway via VITE_API_BASE_URL (https).
+- Checklist: /health publico, /metrics/overview publico, web carga sin errores de consola.
