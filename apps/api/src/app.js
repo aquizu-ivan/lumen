@@ -5,8 +5,23 @@ import { errorResponse } from "./errors.js";
 const app = express();
 const startedAt = new Date().toISOString();
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const ALLOWED_ORIGIN = "https://aquizu-ivan.github.io";
 
 app.use(express.json());
+
+app.use((req, res, next) => {
+  if (req.headers.origin === ALLOWED_ORIGIN) {
+    res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
+    res.setHeader("Vary", "Origin");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+  next();
+});
 
 app.get("/health", (req, res) => {
   res.status(200).json({
