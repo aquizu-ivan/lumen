@@ -258,6 +258,23 @@ button:focus-visible {
   font-size: 0.9rem;
 }
 
+.state-message {
+  color: var(--muted);
+  font-size: 0.95rem;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.state-message.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.state-message.is-error {
+  color: var(--error);
+}
+
 pre {
   margin: 0;
   padding: 12px;
