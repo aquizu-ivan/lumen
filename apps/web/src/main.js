@@ -7,24 +7,31 @@ const metaUptimeEl = document.getElementById("meta-uptime");
 const filterFromEl = document.getElementById("filter-from");
 const filterToEl = document.getElementById("filter-to");
 const filterServiceEl = document.getElementById("filter-service");
+const filterNoteEl = document.getElementById("filter-note");
+const preset24Btn = document.getElementById("preset-24h");
+const preset7Btn = document.getElementById("preset-7d");
+const preset30Btn = document.getElementById("preset-30d");
 const applyFiltersBtn = document.getElementById("apply-filters");
 const clearFiltersBtn = document.getElementById("clear-filters");
+const copyLinkBtn = document.getElementById("copy-link");
+const copyFeedbackEl = document.getElementById("copy-feedback");
 const contractHealthEl = document.getElementById("contract-health");
 const contractOverviewEl = document.getElementById("contract-overview");
 
 const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const baseUrl = import.meta.env.DEV ? envBaseUrl || "http://localhost:4000" : envBaseUrl;
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const dateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+let pendingServiceId = "";
+let copyFeedbackTimeout = null;
+let filterNoteTimeout = null;
 
 function setText(el, text) {
   el.textContent = text;
 }
 
 function setError(el, info) {
-  if (info.type === "http") {
-    setText(el, `Error HTTP ${info.status}`);
-    return;
-  }
-  setText(el, "Error de red");
+  setText(el, describeError(info));
 }
 
 function setContractError(el, info) {
@@ -38,6 +45,157 @@ function setContractError(el, info) {
 function setContractJson(el, data) {
   const payload = data === undefined ? null : data;
   setText(el, JSON.stringify(payload, null, 2));
+}
+
+function describeError(info) {
+  if (info && info.type === "http") {
+    if (info.status >= 500) {
+      return "No se pudo cargar. Problema del servidor.";
+    }
+    return "No se pudo cargar. Revisa filtros o permisos.";
+  }
+  return "No se pudo conectar. Revisa conexion o CORS.";
+}
+
+function showFilterNote(message) {
+  if (!filterNoteEl) {
+    return;
+  }
+  filterNoteEl.textContent = message;
+  filterNoteEl.classList.add("is-visible");
+  if (filterNoteTimeout) {
+    clearTimeout(filterNoteTimeout);
+  }
+  filterNoteTimeout = setTimeout(() => {
+    filterNoteEl.classList.remove("is-visible");
+  }, 2200);
+}
+
+function clearFilterNote() {
+  if (!filterNoteEl) {
+    return;
+  }
+  filterNoteEl.classList.remove("is-visible");
+  filterNoteEl.textContent = "";
+  if (filterNoteTimeout) {
+    clearTimeout(filterNoteTimeout);
+    filterNoteTimeout = null;
+  }
+}
+
+function formatDate(value) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeDate(value) {
+  if (!value) {
+    return "";
+  }
+  if (dateRegex.test(value)) {
+    return value;
+  }
+  if (dateTimeRegex.test(value)) {
+    return value.slice(0, 10);
+  }
+  return "";
+}
+
+function normalizeFilters(values) {
+  const rawFrom = values.from || "";
+  const rawTo = values.to || "";
+  const normalized = {
+    from: normalizeDate(rawFrom),
+    to: normalizeDate(rawTo),
+    serviceId: typeof values.serviceId === "string" ? values.serviceId : ""
+  };
+  let corrected = false;
+  if (rawFrom && rawFrom !== normalized.from) {
+    corrected = true;
+  }
+  if (rawTo && rawTo !== normalized.to) {
+    corrected = true;
+  }
+  if (normalized.from && normalized.to && normalized.from > normalized.to) {
+    const temp = normalized.from;
+    normalized.from = normalized.to;
+    normalized.to = temp;
+    corrected = true;
+  }
+  return { values: normalized, corrected };
+}
+
+function readFiltersFromInputs() {
+  return {
+    from: filterFromEl ? filterFromEl.value : "",
+    to: filterToEl ? filterToEl.value : "",
+    serviceId: filterServiceEl ? filterServiceEl.value : ""
+  };
+}
+
+function readFiltersFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    from: params.get("from") || "",
+    to: params.get("to") || "",
+    serviceId: params.get("serviceId") || ""
+  };
+}
+
+function writeFiltersToUrl(values) {
+  const params = new URLSearchParams();
+  if (values.from) {
+    params.set("from", values.from);
+  }
+  if (values.to) {
+    params.set("to", values.to);
+  }
+  if (values.serviceId) {
+    params.set("serviceId", values.serviceId);
+  }
+  const query = params.toString();
+  const newUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+  window.history.replaceState({}, "", newUrl);
+}
+
+function copyText(value) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard
+      .writeText(value)
+      .then(() => true)
+      .catch(() => false);
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "absolute";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(textarea);
+  return Promise.resolve(ok);
+}
+
+function showCopyFeedback(message) {
+  if (!copyFeedbackEl) {
+    return;
+  }
+  copyFeedbackEl.textContent = message;
+  copyFeedbackEl.classList.add("is-visible");
+  if (copyFeedbackTimeout) {
+    clearTimeout(copyFeedbackTimeout);
+  }
+  copyFeedbackTimeout = setTimeout(() => {
+    copyFeedbackEl.classList.remove("is-visible");
+  }, 1200);
 }
 
 function clearEl(el) {
@@ -95,7 +253,7 @@ function renderOverview(data) {
   if (total === 0) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = "Sin datos para este rango/servicio";
+    empty.textContent = "Sin datos para este rango/servicio. Proba presets 7d o 30d.";
     overviewEl.appendChild(empty);
   }
   const list = document.createElement("ul");
@@ -138,10 +296,8 @@ function renderStatusError(info, message) {
   const detail = document.createElement("div");
   if (message) {
     detail.textContent = message;
-  } else if (info && info.type === "http") {
-    detail.textContent = `HTTP ${info.status}`;
   } else {
-    detail.textContent = "Error de red";
+    detail.textContent = describeError(info);
   }
   statusEl.appendChild(detail);
   setMetaLine(null);
@@ -167,6 +323,58 @@ function populateServices(metaData) {
     option.value = id;
     option.textContent = name;
     filterServiceEl.appendChild(option);
+  });
+  applyServiceSelection(pendingServiceId);
+  pendingServiceId = "";
+}
+
+function applyServiceSelection(value) {
+  if (!filterServiceEl) {
+    return;
+  }
+  if (!value) {
+    filterServiceEl.value = "";
+    return;
+  }
+  const exists = Array.from(filterServiceEl.options).some((option) => option.value === value);
+  if (!exists) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    filterServiceEl.appendChild(option);
+  }
+  filterServiceEl.value = value;
+}
+
+function applyFilters(values) {
+  const normalized = normalizeFilters(values);
+  if (filterFromEl) {
+    filterFromEl.value = normalized.values.from;
+  }
+  if (filterToEl) {
+    filterToEl.value = normalized.values.to;
+  }
+  if (filterServiceEl) {
+    filterServiceEl.value = normalized.values.serviceId;
+  }
+  writeFiltersToUrl(normalized.values);
+  if (normalized.corrected) {
+    showFilterNote("Rango corregido automaticamente");
+  } else {
+    clearFilterNote();
+  }
+  loadOverview();
+}
+
+function applyPreset(days) {
+  const today = new Date();
+  const fromDate = new Date(today);
+  fromDate.setDate(today.getDate() - days);
+  const current = readFiltersFromInputs();
+  applyFilters({
+    from: formatDate(fromDate),
+    to: formatDate(today),
+    serviceId: current.serviceId
   });
 }
 
@@ -199,6 +407,18 @@ async function loadOverview() {
 }
 
 async function init() {
+  const initialFilters = normalizeFilters(readFiltersFromUrl());
+  if (filterFromEl) {
+    filterFromEl.value = initialFilters.values.from;
+  }
+  if (filterToEl) {
+    filterToEl.value = initialFilters.values.to;
+  }
+  pendingServiceId = initialFilters.values.serviceId;
+  writeFiltersToUrl(initialFilters.values);
+  if (initialFilters.corrected) {
+    showFilterNote("Rango corregido automaticamente");
+  }
   setText(statusEl, "Consultando /health...");
   setText(overviewEl, "Consultando /metrics/overview...");
   setText(contractHealthEl, "Consultando /health...");
@@ -224,6 +444,9 @@ async function init() {
   const metaResult = await fetchJson(`${baseUrl}/meta`);
   if (metaResult.ok) {
     populateServices(metaResult.data);
+  } else {
+    applyServiceSelection(pendingServiceId);
+    pendingServiceId = "";
   }
 
   await loadOverview();
@@ -231,22 +454,38 @@ async function init() {
 
 if (applyFiltersBtn) {
   applyFiltersBtn.addEventListener("click", () => {
-    loadOverview();
+    applyFilters(readFiltersFromInputs());
   });
 }
 
 if (clearFiltersBtn) {
   clearFiltersBtn.addEventListener("click", () => {
-    if (filterFromEl) {
-      filterFromEl.value = "";
-    }
-    if (filterToEl) {
-      filterToEl.value = "";
-    }
-    if (filterServiceEl) {
-      filterServiceEl.value = "";
-    }
-    loadOverview();
+    applyFilters({ from: "", to: "", serviceId: "" });
+  });
+}
+
+if (preset24Btn) {
+  preset24Btn.addEventListener("click", () => {
+    applyPreset(1);
+  });
+}
+
+if (preset7Btn) {
+  preset7Btn.addEventListener("click", () => {
+    applyPreset(7);
+  });
+}
+
+if (preset30Btn) {
+  preset30Btn.addEventListener("click", () => {
+    applyPreset(30);
+  });
+}
+
+if (copyLinkBtn) {
+  copyLinkBtn.addEventListener("click", async () => {
+    const ok = await copyText(window.location.href);
+    showCopyFeedback(ok ? "Copiado" : "No se pudo copiar");
   });
 }
 

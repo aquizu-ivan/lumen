@@ -44,10 +44,24 @@
               <option value="">Todos</option>
             </select>
           </div>
+          <div class="filter-tools">
+            <div class="preset-group" aria-label="Presets de rango">
+              <button class="btn btn-chip" id="preset-24h" type="button">24h</button>
+              <button class="btn btn-chip" id="preset-7d" type="button">7d</button>
+              <button class="btn btn-chip" id="preset-30d" type="button">30d</button>
+            </div>
+            <div class="copy-group">
+              <button id="copy-link" class="btn btn-ghost btn-small" type="button">
+                Copiar link
+              </button>
+              <span id="copy-feedback" class="copy-feedback" aria-live="polite"></span>
+            </div>
+          </div>
           <div class="actions">
             <button id="apply-filters" class="btn btn-primary" type="button">Aplicar</button>
             <button id="clear-filters" class="btn btn-ghost" type="button">Limpiar</button>
           </div>
+          <p id="filter-note" class="filter-note" aria-live="polite"></p>
         </section>
         <section id="contract-live" class="panel full">
           <h2>Contrato vivo</h2>
