@@ -24,12 +24,20 @@
 ```json
 {
   "ok": true,
-  "data": {
-    "range": { "from": "2025-01-01", "to": "2025-03-31" },
+  "meta": {
+    "dataset": {
+      "kind": "demo",
+      "days": 90,
+      "seed": "lumen-demo",
+      "from": "2025-01-01",
+      "to": "2025-03-31"
+    },
     "services": [
-      { "id": "svc-1", "name": "Corte" }
+      { "id": "svc-1", "name": "Corte", "durationMin": 30 }
     ],
-    "totalAppointments": 540
+    "defaults": {
+      "recommendedRangeDays": 7
+    }
   }
 }
 ```
@@ -102,6 +110,25 @@
     "message": "Parámetros inválidos",
     "details": { "field": "from" },
     "timestamp": "2025-01-01T00:00:00.000Z"
+  }
+}
+```
+
+## GET /metrics/timeseries
+- Query params: from (YYYY-MM-DD), to (YYYY-MM-DD), serviceId (string)
+- Response 200 (sin params):
+```json
+{
+  "ok": true,
+  "series": [
+    { "date": "2025-03-25", "total": 24, "noShow": 2, "cancelled": 1 },
+    { "date": "2025-03-26", "total": 25, "noShow": 1, "cancelled": 0 }
+  ],
+  "summary": {
+    "from": "2025-03-25",
+    "to": "2025-03-31",
+    "serviceId": null,
+    "days": 7
   }
 }
 ```

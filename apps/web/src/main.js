@@ -28,6 +28,8 @@ const copyOverviewFeedbackEl = document.getElementById("copy-overview-feedback")
 const statusAnnounceEl = document.getElementById("status-announce");
 const overviewAnnounceEl = document.getElementById("overview-announce");
 const overviewUpdatedEl = document.getElementById("overview-updated");
+const trendEl = document.getElementById("trend-content");
+const trendAnnounceEl = document.getElementById("trend-announce");
 
 const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const baseUrl = import.meta.env.DEV ? envBaseUrl || "http://localhost:4000" : envBaseUrl;
@@ -38,11 +40,17 @@ let copyFeedbackTimeout = null;
 let filterNoteTimeout = null;
 let lastStatusAnnouncement = "";
 let lastOverviewAnnouncement = "";
+let lastTrendAnnouncement = "";
 let demoMode = false;
+let datasetRange = null;
+let recommendedRangeDays = 7;
 const feedbackTimeouts = new Map();
 const overviewCache = new Map();
 const overviewInflight = new Map();
 const OVERVIEW_TTL_MS = 30000;
+const timeseriesCache = new Map();
+const timeseriesInflight = new Map();
+const TIMESERIES_TTL_MS = 30000;
 
 function setText(el, text) {
   el.textContent = text;
@@ -100,6 +108,14 @@ function announceOverview(message) {
   }
   overviewAnnounceEl.textContent = message;
   lastOverviewAnnouncement = message;
+}
+
+function announceTrend(message) {
+  if (!trendAnnounceEl || !message || message === lastTrendAnnouncement) {
+    return;
+  }
+  trendAnnounceEl.textContent = message;
+  lastTrendAnnouncement = message;
 }
 
 function describeError(info) {
@@ -167,6 +183,10 @@ function buildOverviewKey() {
   return `${from}|${to}|${serviceId}`;
 }
 
+function buildTimeseriesKey() {
+  return buildOverviewKey();
+}
+
 function fetchOverviewWithCache() {
   const key = buildOverviewKey();
   const now = Date.now();
@@ -196,6 +216,38 @@ function fetchOverviewWithCache() {
       return Promise.reject(err);
     });
   overviewInflight.set(key, promise);
+  return promise;
+}
+
+function fetchTimeseriesWithCache() {
+  const key = buildTimeseriesKey();
+  const now = Date.now();
+  const cached = timeseriesCache.get(key);
+  if (cached && now < cached.expiresAtMs) {
+    return Promise.resolve({ data: cached.data, source: "cache" });
+  }
+  if (timeseriesInflight.has(key)) {
+    return timeseriesInflight.get(key);
+  }
+  const promise = fetchJson(buildTimeseriesUrl())
+    .then((result) => {
+      timeseriesInflight.delete(key);
+      if (result.ok) {
+        const fetchedAtMs = Date.now();
+        timeseriesCache.set(key, {
+          data: result.data,
+          fetchedAtMs,
+          expiresAtMs: fetchedAtMs + TIMESERIES_TTL_MS
+        });
+        return { data: result.data, source: "network" };
+      }
+      return Promise.reject(result);
+    })
+    .catch((err) => {
+      timeseriesInflight.delete(key);
+      return Promise.reject(err);
+    });
+  timeseriesInflight.set(key, promise);
   return promise;
 }
 
@@ -354,6 +406,21 @@ function showOverviewMessage(message, tone) {
   setUpdatedLine(null);
 }
 
+function showTrendMessage(message, tone) {
+  clearEl(trendEl);
+  const msg = document.createElement("div");
+  msg.className = "state-message";
+  if (tone) {
+    msg.classList.add(tone);
+  }
+  msg.textContent = message;
+  trendEl.appendChild(msg);
+  requestAnimationFrame(() => {
+    msg.classList.add("is-visible");
+  });
+  announceTrend(message);
+}
+
 async function fetchJson(url) {
   try {
     const response = await fetch(url);
@@ -424,6 +491,85 @@ function renderOverview(data) {
   overviewEl.appendChild(list);
 }
 
+function renderTimeseries(data) {
+  clearEl(trendEl);
+  const safeData = data && typeof data === "object" ? data : {};
+  const series = Array.isArray(safeData.series) ? safeData.series : [];
+  if (series.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "state-message is-visible";
+    empty.textContent = "Sin datos para este rango.";
+    trendEl.appendChild(empty);
+    announceTrend("Sin datos para este rango.");
+    return;
+  }
+  const totals = series.map((point) =>
+    typeof point.total === "number" ? point.total : 0
+  );
+  const maxValue = Math.max(...totals, 0);
+  const width = 640;
+  const height = 180;
+  const padding = 24;
+  const innerWidth = width - padding * 2;
+  const innerHeight = height - padding * 2;
+  const points = series.map((point, index) => {
+    const value = typeof point.total === "number" ? point.total : 0;
+    const ratio = maxValue === 0 ? 0 : value / maxValue;
+    const x =
+      padding + (innerWidth * index) / Math.max(1, series.length - 1);
+    const y = padding + innerHeight - ratio * innerHeight;
+    return { x, y };
+  });
+  const linePath = points
+    .map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`)
+    .join(" ");
+  const bottom = padding + innerHeight;
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${bottom} L ${
+    points[0].x
+  } ${bottom} Z`;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Tendencia de turnos por dia");
+  svg.classList.add("trend-svg");
+
+  const area = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  area.setAttribute("d", areaPath);
+  area.classList.add("trend-area");
+  svg.appendChild(area);
+
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  line.setAttribute("d", linePath);
+  line.classList.add("trend-line");
+  svg.appendChild(line);
+
+  const meta = document.createElement("div");
+  meta.className = "trend-meta";
+  const from =
+    safeData.summary && typeof safeData.summary.from === "string"
+      ? safeData.summary.from
+      : series[0].date;
+  const to =
+    safeData.summary && typeof safeData.summary.to === "string"
+      ? safeData.summary.to
+      : series[series.length - 1].date;
+  const left = document.createElement("span");
+  left.textContent = from;
+  const center = document.createElement("span");
+  center.textContent = `max: ${maxValue}`;
+  const right = document.createElement("span");
+  right.textContent = to;
+  meta.appendChild(left);
+  meta.appendChild(center);
+  meta.appendChild(right);
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "trend-chart";
+  wrapper.appendChild(svg);
+  wrapper.appendChild(meta);
+  trendEl.appendChild(wrapper);
+}
+
 function setMetaLine(data) {
   if (!metaServiceEl || !metaEnvEl || !metaStartedEl || !metaUptimeEl) {
     return;
@@ -461,8 +607,16 @@ function populateServices(metaData) {
     return;
   }
   filterServiceEl.innerHTML = '<option value="">Todos</option>';
-  const services =
-    metaData && metaData.data && Array.isArray(metaData.data.services) ? metaData.data.services : [];
+  const meta = metaData && metaData.meta && typeof metaData.meta === "object" ? metaData.meta : null;
+  const services = meta && Array.isArray(meta.services) ? meta.services : [];
+  const dataset = meta && meta.dataset && typeof meta.dataset === "object" ? meta.dataset : null;
+  if (dataset && typeof dataset.from === "string" && typeof dataset.to === "string") {
+    datasetRange = { from: dataset.from, to: dataset.to };
+  }
+  const defaults = meta && meta.defaults && typeof meta.defaults === "object" ? meta.defaults : null;
+  if (defaults && typeof defaults.recommendedRangeDays === "number") {
+    recommendedRangeDays = defaults.recommendedRangeDays;
+  }
   services.forEach((service) => {
     if (!service || typeof service !== "object") {
       return;
@@ -526,15 +680,24 @@ function applyFilters(values) {
   }
   if (normalized.values.from || normalized.values.to || normalized.values.serviceId) {
     loadOverview();
+    loadTimeseries();
   } else {
     showOverviewMessage("Selecciona un rango o usa un preset para ver metricas.", "is-initial");
     setText(contractOverviewEl, "Esperando filtros...");
     setUpdatedLine(null);
+    showTrendMessage("Selecciona un rango o usa un preset para ver tendencia.", "is-initial");
   }
 }
 
+function getAnchorDate() {
+  if (datasetRange && dateRegex.test(datasetRange.to)) {
+    return new Date(`${datasetRange.to}T00:00:00`);
+  }
+  return new Date();
+}
+
 function applyPreset(days) {
-  const today = new Date();
+  const today = getAnchorDate();
   const fromDate = new Date(today);
   fromDate.setDate(today.getDate() - days);
   const current = readFiltersFromInputs();
@@ -546,7 +709,7 @@ function applyPreset(days) {
 }
 
 function applyDemoFilters() {
-  const today = new Date();
+  const today = getAnchorDate();
   const fromDate = new Date(today);
   fromDate.setDate(today.getDate() - 7);
   const current = readFiltersFromInputs();
@@ -571,6 +734,21 @@ function buildOverviewUrl() {
   }
   const query = params.toString();
   return `${baseUrl}/metrics/overview${query ? `?${query}` : ""}`;
+}
+
+function buildTimeseriesUrl() {
+  const params = new URLSearchParams();
+  if (filterFromEl && filterFromEl.value) {
+    params.set("from", filterFromEl.value);
+  }
+  if (filterToEl && filterToEl.value) {
+    params.set("to", filterToEl.value);
+  }
+  if (filterServiceEl && filterServiceEl.value) {
+    params.set("serviceId", filterServiceEl.value);
+  }
+  const query = params.toString();
+  return `${baseUrl}/metrics/timeseries${query ? `?${query}` : ""}`;
 }
 
 async function loadOverview() {
@@ -601,6 +779,28 @@ async function loadOverview() {
   }
 }
 
+async function loadTimeseries() {
+  const key = buildTimeseriesKey();
+  const now = Date.now();
+  const cached = timeseriesCache.get(key);
+  if (cached && now < cached.expiresAtMs) {
+    renderTimeseries(cached.data);
+    return;
+  }
+  showTrendMessage("Cargando tendencia...", "is-loading");
+  try {
+    const result = await fetchTimeseriesWithCache();
+    const series = result.data && Array.isArray(result.data.series) ? result.data.series : [];
+    if (series.length === 0) {
+      showTrendMessage("Sin datos para este rango.", "is-empty");
+      return;
+    }
+    renderTimeseries(result.data);
+  } catch (error) {
+    showTrendMessage(describeError(error), "is-error");
+  }
+}
+
 async function init() {
   const demoFromUrl = readDemoFromUrl();
   setDemoMode(demoFromUrl);
@@ -620,15 +820,18 @@ async function init() {
   announceStatus("Consultando /health...");
   if (initialFilters.values.from || initialFilters.values.to || initialFilters.values.serviceId) {
     showOverviewMessage("Cargando metricas...", "is-loading");
+    showTrendMessage("Cargando tendencia...", "is-loading");
   } else {
     showOverviewMessage("Selecciona un rango o usa un preset para ver metricas.", "is-initial");
     setText(contractOverviewEl, "Esperando filtros...");
+    showTrendMessage("Selecciona un rango o usa un preset para ver tendencia.", "is-initial");
   }
   setText(contractHealthEl, "Consultando /health...");
 
   if (!baseUrl) {
     renderStatusError(null, "VITE_API_BASE_URL requerida en produccion");
     setText(overviewEl, "Error: VITE_API_BASE_URL requerida en produccion");
+    setText(trendEl, "Error: VITE_API_BASE_URL requerida en produccion");
     setText(contractHealthEl, "ERROR baseUrl");
     setText(contractOverviewEl, "ERROR baseUrl");
     return;
@@ -657,7 +860,7 @@ async function init() {
   }
 
   if (initialFilters.values.from || initialFilters.values.to || initialFilters.values.serviceId) {
-    await loadOverview();
+    await Promise.all([loadOverview(), loadTimeseries()]);
   }
 }
 

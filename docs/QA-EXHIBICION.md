@@ -115,3 +115,11 @@
 - Contrato vivo y pre no rompen layout, con scroll interno.
 - Hero legible y jerarquia clara.
 - Modo demo sigue funcionando.
+
+## Ticket-15 - Dataset + timeseries + grafico
+- curl https://lumen-lumen-api.up.railway.app/meta
+- curl https://lumen-lumen-api.up.railway.app/metrics/timeseries
+- curl https://lumen-lumen-api.up.railway.app/metrics/timeseries?from=2025-03-01&to=2025-03-15&serviceId=svc-2
+- Web: abrir https://aquizu-ivan.github.io/lumen/?demo=1 y ver panel Tendencia con datos.
+- Preset 30d cambia la tendencia.
+- Cambiar serviceId y confirmar que la tendencia cambia.
