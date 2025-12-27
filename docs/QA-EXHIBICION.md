@@ -82,3 +82,10 @@
   - Nota "Rango corregido automaticamente" cuando from > to.
   - Mensaje "Sin datos para este rango/servicio. Proba presets 7d o 30d." si total=0.
   - Estado ERROR con texto de causa probable si falla la carga.
+
+## Ticket-10 — Estado inicial y carga
+- Primera carga sin filtros: Overview muestra "Selecciona un rango o usa un preset para ver metricas."
+- Loading visible: durante fetch se ve "Cargando metricas..." sin dejar panel vacio.
+- Empty-state guiado: total=0 mantiene mensaje de sin datos y sugiere presets.
+- Confirmar sin flashes ni paneles en blanco sin texto.
+- Base /lumen/ intacta.

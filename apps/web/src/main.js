@@ -204,6 +204,20 @@ function clearEl(el) {
   }
 }
 
+function showOverviewMessage(message, tone) {
+  clearEl(overviewEl);
+  const msg = document.createElement("div");
+  msg.className = "state-message";
+  if (tone) {
+    msg.classList.add(tone);
+  }
+  msg.textContent = message;
+  overviewEl.appendChild(msg);
+  requestAnimationFrame(() => {
+    msg.classList.add("is-visible");
+  });
+}
+
 async function fetchJson(url) {
   try {
     const response = await fetch(url);
@@ -363,7 +377,12 @@ function applyFilters(values) {
   } else {
     clearFilterNote();
   }
-  loadOverview();
+  if (normalized.values.from || normalized.values.to || normalized.values.serviceId) {
+    loadOverview();
+  } else {
+    showOverviewMessage("Selecciona un rango o usa un preset para ver metricas.", "is-initial");
+    setText(contractOverviewEl, "Esperando filtros...");
+  }
 }
 
 function applyPreset(days) {
@@ -394,11 +413,11 @@ function buildOverviewUrl() {
 }
 
 async function loadOverview() {
-  setText(overviewEl, "Consultando /metrics/overview...");
+  showOverviewMessage("Cargando metricas...", "is-loading");
   setText(contractOverviewEl, "Consultando /metrics/overview...");
   const overviewResult = await fetchJson(buildOverviewUrl());
   if (!overviewResult.ok) {
-    setError(overviewEl, overviewResult);
+    showOverviewMessage(describeError(overviewResult), "is-error");
     setContractError(contractOverviewEl, overviewResult);
   } else {
     renderOverview(overviewResult.data.data);
@@ -420,9 +439,13 @@ async function init() {
     showFilterNote("Rango corregido automaticamente");
   }
   setText(statusEl, "Consultando /health...");
-  setText(overviewEl, "Consultando /metrics/overview...");
+  if (initialFilters.values.from || initialFilters.values.to || initialFilters.values.serviceId) {
+    showOverviewMessage("Cargando metricas...", "is-loading");
+  } else {
+    showOverviewMessage("Selecciona un rango o usa un preset para ver metricas.", "is-initial");
+    setText(contractOverviewEl, "Esperando filtros...");
+  }
   setText(contractHealthEl, "Consultando /health...");
-  setText(contractOverviewEl, "Consultando /metrics/overview...");
 
   if (!baseUrl) {
     renderStatusError(null, "VITE_API_BASE_URL requerida en produccion");
@@ -449,7 +472,9 @@ async function init() {
     pendingServiceId = "";
   }
 
-  await loadOverview();
+  if (initialFilters.values.from || initialFilters.values.to || initialFilters.values.serviceId) {
+    await loadOverview();
+  }
 }
 
 if (applyFiltersBtn) {
