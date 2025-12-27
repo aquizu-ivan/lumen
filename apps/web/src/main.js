@@ -19,6 +19,7 @@ const contractHealthEl = document.getElementById("contract-health");
 const contractOverviewEl = document.getElementById("contract-overview");
 const statusAnnounceEl = document.getElementById("status-announce");
 const overviewAnnounceEl = document.getElementById("overview-announce");
+const overviewUpdatedEl = document.getElementById("overview-updated");
 
 const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const baseUrl = import.meta.env.DEV ? envBaseUrl || "http://localhost:4000" : envBaseUrl;
@@ -29,6 +30,9 @@ let copyFeedbackTimeout = null;
 let filterNoteTimeout = null;
 let lastStatusAnnouncement = "";
 let lastOverviewAnnouncement = "";
+const overviewCache = new Map();
+const overviewInflight = new Map();
+const OVERVIEW_TTL_MS = 30000;
 
 function setText(el, text) {
   el.textContent = text;
@@ -101,6 +105,67 @@ function clearFilterNote() {
     clearTimeout(filterNoteTimeout);
     filterNoteTimeout = null;
   }
+}
+
+function setUpdatedLine(timestampMs) {
+  if (!overviewUpdatedEl) {
+    return;
+  }
+  if (!timestampMs) {
+    overviewUpdatedEl.textContent = "";
+    overviewUpdatedEl.classList.remove("is-visible");
+    return;
+  }
+  const now = Date.now();
+  const diffSeconds = Math.max(0, Math.floor((now - timestampMs) / 1000));
+  let label;
+  if (diffSeconds < 60) {
+    label = `Actualizado hace ${diffSeconds}s`;
+  } else {
+    const minutes = Math.floor(diffSeconds / 60);
+    label = `Actualizado hace ${minutes}m`;
+  }
+  overviewUpdatedEl.textContent = label;
+  overviewUpdatedEl.classList.add("is-visible");
+}
+
+function buildOverviewKey() {
+  const from = filterFromEl && filterFromEl.value ? filterFromEl.value : "";
+  const to = filterToEl && filterToEl.value ? filterToEl.value : "";
+  const serviceId = filterServiceEl && filterServiceEl.value ? filterServiceEl.value : "";
+  return `${from}|${to}|${serviceId}`;
+}
+
+function fetchOverviewWithCache() {
+  const key = buildOverviewKey();
+  const now = Date.now();
+  const cached = overviewCache.get(key);
+  if (cached && now < cached.expiresAtMs) {
+    return Promise.resolve({ data: cached.data, source: "cache" });
+  }
+  if (overviewInflight.has(key)) {
+    return overviewInflight.get(key);
+  }
+  const promise = fetchJson(buildOverviewUrl())
+    .then((result) => {
+      overviewInflight.delete(key);
+      if (result.ok) {
+        const fetchedAtMs = Date.now();
+        overviewCache.set(key, {
+          data: result.data,
+          fetchedAtMs,
+          expiresAtMs: fetchedAtMs + OVERVIEW_TTL_MS
+        });
+        return { data: result.data, source: "network" };
+      }
+      return Promise.reject(result);
+    })
+    .catch((err) => {
+      overviewInflight.delete(key);
+      return Promise.reject(err);
+    });
+  overviewInflight.set(key, promise);
+  return promise;
 }
 
 function formatDate(value) {
@@ -237,6 +302,7 @@ function showOverviewMessage(message, tone) {
     msg.classList.add("is-visible");
   });
   announceOverview(message);
+  setUpdatedLine(null);
 }
 
 async function fetchJson(url) {
@@ -406,6 +472,7 @@ function applyFilters(values) {
   } else {
     showOverviewMessage("Selecciona un rango o usa un preset para ver metricas.", "is-initial");
     setText(contractOverviewEl, "Esperando filtros...");
+    setUpdatedLine(null);
   }
 }
 
@@ -437,15 +504,30 @@ function buildOverviewUrl() {
 }
 
 async function loadOverview() {
+  const key = buildOverviewKey();
+  const now = Date.now();
+  const cached = overviewCache.get(key);
+  if (cached && now < cached.expiresAtMs) {
+    renderOverview(cached.data.data);
+    setContractJson(contractOverviewEl, cached.data);
+    setUpdatedLine(cached.fetchedAtMs);
+    return;
+  }
   showOverviewMessage("Cargando metricas...", "is-loading");
   setText(contractOverviewEl, "Consultando /metrics/overview...");
-  const overviewResult = await fetchJson(buildOverviewUrl());
-  if (!overviewResult.ok) {
-    showOverviewMessage(describeError(overviewResult), "is-error");
-    setContractError(contractOverviewEl, overviewResult);
-  } else {
-    renderOverview(overviewResult.data.data);
-    setContractJson(contractOverviewEl, overviewResult.data);
+  try {
+    const result = await fetchOverviewWithCache();
+    renderOverview(result.data.data);
+    setContractJson(contractOverviewEl, result.data);
+    const latest = overviewCache.get(key);
+    if (latest) {
+      setUpdatedLine(latest.fetchedAtMs);
+    } else {
+      setUpdatedLine(Date.now());
+    }
+  } catch (error) {
+    showOverviewMessage(describeError(error), "is-error");
+    setContractError(contractOverviewEl, error);
   }
 }
 

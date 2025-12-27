@@ -95,3 +95,8 @@
 - Foco visible consistente en botones, inputs y select.
 - Estados anunciados: inicial, loading, sin datos y error se leen con aria-live.
 - Confirmar que no cambia la estetica ni el layout.
+
+## Ticket-12 — Cache liviano y dedupe
+- Aplicar mismos filtros 2 veces dentro de 30s: no hay loading duro y "Actualizado hace Xs" se mantiene.
+- Doble accion rapida con misma key: no hay parpadeo y se mantiene una sola actualizacion visible.
+- Esperar mas de 30s y reaplicar: vuelve a cargar y se actualiza el timestamp.
