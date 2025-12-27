@@ -26,6 +26,7 @@ body {
     var(--bg);
   color: var(--text);
   line-height: 1.6;
+  font-size: 16px;
 }
 
 .page {
@@ -226,6 +227,7 @@ summary:focus-visible {
   border: 1px solid transparent;
   cursor: pointer;
   transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  min-height: 40px;
 }
 
 .btn-chip {
@@ -389,6 +391,7 @@ pre {
   font-family: var(--mono);
   font-size: 0.85rem;
   overflow-x: auto;
+  max-height: 360px;
 }
 
 ul {
@@ -403,5 +406,90 @@ ul {
 
   .panel.full {
     grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 24px 16px 48px;
+  }
+
+  .hero {
+    margin-bottom: 22px;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  .subtitle {
+    font-size: 0.95rem;
+  }
+
+  .meta-line {
+    gap: 8px 12px;
+    font-size: 0.72rem;
+  }
+
+  .grid {
+    gap: 16px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .panel h2 {
+    font-size: 1.02rem;
+  }
+
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions .btn {
+    width: 100%;
+  }
+
+  .filter-tools {
+    gap: 10px;
+  }
+
+  pre {
+    font-size: 0.78rem;
+    max-height: 240px;
+  }
+
+  .contract-section summary {
+    padding: 6px 0;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .page {
+    padding: 36px 24px 56px;
+  }
+
+  .panel {
+    padding: 18px 22px;
+  }
+
+  .meta-line {
+    font-size: 0.78rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page {
+    padding: 40px 28px 72px;
+  }
+
+  .hero {
+    margin-bottom: 32px;
+  }
+
+  .grid {
+    gap: 22px;
   }
 }

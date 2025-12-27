@@ -107,3 +107,11 @@
 - Toggle demo: agrega demo=1 al activar y lo remueve al desactivar sin borrar filtros.
 - Copiar JSON: health y overview muestran feedback Copiado.
 - Accesibilidad: TAB y ENTER/SPACE funcionan en toggle, colapsables y copiar JSON.
+
+## Ticket-14 — Responsive
+- Viewports: 360x800, 768x1024, 1024x768.
+- Sin overflow horizontal en body.
+- Controles con targets comodos (presets, copiar link, aplicar/limpiar).
+- Contrato vivo y pre no rompen layout, con scroll interno.
+- Hero legible y jerarquia clara.
+- Modo demo sigue funcionando.
