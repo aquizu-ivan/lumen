@@ -17,6 +17,8 @@ const copyLinkBtn = document.getElementById("copy-link");
 const copyFeedbackEl = document.getElementById("copy-feedback");
 const contractHealthEl = document.getElementById("contract-health");
 const contractOverviewEl = document.getElementById("contract-overview");
+const statusAnnounceEl = document.getElementById("status-announce");
+const overviewAnnounceEl = document.getElementById("overview-announce");
 
 const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const baseUrl = import.meta.env.DEV ? envBaseUrl || "http://localhost:4000" : envBaseUrl;
@@ -25,6 +27,8 @@ const dateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 let pendingServiceId = "";
 let copyFeedbackTimeout = null;
 let filterNoteTimeout = null;
+let lastStatusAnnouncement = "";
+let lastOverviewAnnouncement = "";
 
 function setText(el, text) {
   el.textContent = text;
@@ -45,6 +49,22 @@ function setContractError(el, info) {
 function setContractJson(el, data) {
   const payload = data === undefined ? null : data;
   setText(el, JSON.stringify(payload, null, 2));
+}
+
+function announceStatus(message) {
+  if (!statusAnnounceEl || !message || message === lastStatusAnnouncement) {
+    return;
+  }
+  statusAnnounceEl.textContent = message;
+  lastStatusAnnouncement = message;
+}
+
+function announceOverview(message) {
+  if (!overviewAnnounceEl || !message || message === lastOverviewAnnouncement) {
+    return;
+  }
+  overviewAnnounceEl.textContent = message;
+  lastOverviewAnnouncement = message;
 }
 
 function describeError(info) {
@@ -216,6 +236,7 @@ function showOverviewMessage(message, tone) {
   requestAnimationFrame(() => {
     msg.classList.add("is-visible");
   });
+  announceOverview(message);
 }
 
 async function fetchJson(url) {
@@ -248,6 +269,7 @@ function renderHealth(data) {
   statusLine.textContent = `Status: ${statusText}`;
   statusEl.appendChild(statusLine);
   setMetaLine(data);
+  announceStatus(`Status ${statusText}`);
   const service = data && typeof data.service === "string" ? data.service : "n/a";
   const env = data && typeof data.env === "string" ? data.env : "n/a";
   const startedAt = data && typeof data.startedAt === "string" ? data.startedAt : "n/a";
@@ -269,6 +291,7 @@ function renderOverview(data) {
     empty.className = "empty";
     empty.textContent = "Sin datos para este rango/servicio. Proba presets 7d o 30d.";
     overviewEl.appendChild(empty);
+    announceOverview("Sin datos para este rango/servicio. Proba presets 7d o 30d.");
   }
   const list = document.createElement("ul");
   const byService = Array.isArray(safeData.byService) ? safeData.byService : [];
@@ -315,6 +338,7 @@ function renderStatusError(info, message) {
   }
   statusEl.appendChild(detail);
   setMetaLine(null);
+  announceStatus("Status ERROR");
 }
 
 function populateServices(metaData) {
@@ -439,6 +463,7 @@ async function init() {
     showFilterNote("Rango corregido automaticamente");
   }
   setText(statusEl, "Consultando /health...");
+  announceStatus("Consultando /health...");
   if (initialFilters.values.from || initialFilters.values.to || initialFilters.values.serviceId) {
     showOverviewMessage("Cargando metricas...", "is-loading");
   } else {
