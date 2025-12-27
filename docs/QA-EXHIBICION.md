@@ -17,6 +17,27 @@
 - URL Pages: https://USUARIO.github.io/lumen/
 - La web debe apuntar a Railway via VITE_API_BASE_URL (https).
 - Checklist: /health publico, /metrics/overview publico, web carga sin errores de consola.
+
+## QA — Contrato /health (TICKET-06)
+- Siempre incluye ok, service, env, startedAt, version, uptimeSeconds y build.
+- build siempre incluye gitSha, deployId, serviceId, serviceInstanceId, region (null si no disponible).
+```json
+{
+  "ok": true,
+  "service": "lumen-api",
+  "env": "production",
+  "startedAt": "2025-01-01T00:00:00.000Z",
+  "version": "dev",
+  "uptimeSeconds": 123,
+  "build": {
+    "gitSha": "abc123",
+    "deployId": "dpl_123",
+    "serviceId": "srv_123",
+    "serviceInstanceId": "srvinst_123",
+    "region": "us-east"
+  }
+}
+```
 ## QA PROD — Identidad de deploy verificable
 1) curl /health sin Origin (debe dar 200)
 2) curl /health con Origin Pages (debe incluir Access-Control-Allow-Origin correcto)

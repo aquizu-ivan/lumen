@@ -37,20 +37,46 @@ async function fetchJson(url) {
 
 function renderHealth(data) {
   clearEl(statusEl);
+  const hasBase =
+    data &&
+    typeof data === "object" &&
+    ["service", "env", "startedAt", "version", "uptimeSeconds", "build"].every((key) => key in data);
+  const build = data && data.build;
+  const hasBuild =
+    build &&
+    typeof build === "object" &&
+    ["gitSha", "deployId", "serviceId", "serviceInstanceId", "region"].every((key) => key in build);
+  const statusText = data && data.ok === true && hasBase && hasBuild ? "OK" : "DEGRADED";
+  const statusLine = document.createElement("div");
+  statusLine.textContent = `Status: ${statusText}`;
+  statusEl.appendChild(statusLine);
+  const service = data && typeof data.service === "string" ? data.service : "n/a";
+  const env = data && typeof data.env === "string" ? data.env : "n/a";
+  const startedAt = data && typeof data.startedAt === "string" ? data.startedAt : "n/a";
   const line = document.createElement("div");
-  line.textContent = `service: ${data.service} | env: ${data.env} | startedAt: ${data.startedAt}`;
+  line.textContent = `service: ${service} | env: ${env} | startedAt: ${startedAt}`;
   statusEl.appendChild(line);
 }
 
 function renderOverview(data) {
   clearEl(overviewEl);
+  const safeData = data && typeof data === "object" ? data : {};
+  const total = typeof safeData.total === "number" ? safeData.total : 0;
+  const noShowRate = typeof safeData.noShowRate === "number" ? safeData.noShowRate : 0;
   const summary = document.createElement("div");
-  summary.textContent = `total: ${data.total} | noShowRate: ${data.noShowRate}`;
+  summary.textContent = `total: ${total} | noShowRate: ${noShowRate}`;
   overviewEl.appendChild(summary);
   const list = document.createElement("ul");
-  data.byService.forEach((item) => {
+  const byService = Array.isArray(safeData.byService) ? safeData.byService : [];
+  byService.forEach((item) => {
+    if (!item || typeof item !== "object") {
+      return;
+    }
     const li = document.createElement("li");
-    li.textContent = `${item.serviceId}: ${item.count} (no-show: ${item.noShow})`;
+    const serviceId = typeof item.serviceId === "string" ? item.serviceId : "n/a";
+    const count = typeof item.count === "number" ? item.count : 0;
+    const noShow = typeof item.noShow === "number" ? item.noShow : 0;
+    li.textContent = `${serviceId}: ${count} (no-show: ${noShow})`;
     list.appendChild(li);
   });
   overviewEl.appendChild(list);
@@ -68,7 +94,7 @@ async function init() {
 
   const healthResult = await fetchJson(`${baseUrl}/health`);
   if (!healthResult.ok) {
-    setError(statusEl, healthResult);
+    setText(statusEl, "ERROR");
   } else {
     renderHealth(healthResult.data);
   }
