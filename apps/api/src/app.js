@@ -9,6 +9,23 @@ const ALLOWED_ORIGIN = "https://aquizu-ivan.github.io";
 
 app.use(express.json());
 
+function shiftDate(value, days) {
+  const base = new Date(`${value}T00:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + days);
+  return base.toISOString().slice(0, 10);
+}
+
+function buildDateRange(from, to) {
+  const dates = [];
+  const cursor = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  while (cursor <= end) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+}
+
 app.use((req, res, next) => {
   if (req.headers.origin === ALLOWED_ORIGIN) {
     res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
@@ -43,13 +60,12 @@ app.get("/health", (req, res) => {
 });
 
 app.get("/meta", (req, res) => {
-  const { rangeFrom, rangeTo, services, appointments } = demoData;
   res.status(200).json({
     ok: true,
-    data: {
-      range: { from: rangeFrom, to: rangeTo },
-      services,
-      totalAppointments: appointments.length
+    meta: {
+      dataset: demoData.meta,
+      services: demoData.services,
+      defaults: demoData.defaults
     }
   });
 });
@@ -90,11 +106,12 @@ app.get("/metrics/overview", (req, res) => {
 
   const effectiveFrom = fromParam ?? demoData.rangeFrom;
   const effectiveTo = toParam ?? demoData.rangeTo;
-  const filtered = demoData.appointments.filter((appointment) => {
-    if (appointment.date < effectiveFrom || appointment.date > effectiveTo) {
+  const filtered = demoData.bookings.filter((booking) => {
+    const date = booking.startAt.slice(0, 10);
+    if (date < effectiveFrom || date > effectiveTo) {
       return false;
     }
-    if (serviceIdParam !== undefined && appointment.serviceId !== serviceIdParam) {
+    if (serviceIdParam !== undefined && booking.serviceId !== serviceIdParam) {
       return false;
     }
     return true;
@@ -104,24 +121,24 @@ app.get("/metrics/overview", (req, res) => {
   let okCount = 0;
   let noShowCount = 0;
 
-  for (const appointment of filtered) {
-    if (appointment.status === "no-show") {
+  for (const booking of filtered) {
+    if (booking.status === "no_show") {
       noShowCount += 1;
     } else {
       okCount += 1;
     }
 
-    const current = byServiceMap.get(appointment.serviceId);
+    const current = byServiceMap.get(booking.serviceId);
     if (current) {
       current.count += 1;
-      if (appointment.status === "no-show") {
+      if (booking.status === "no_show") {
         current.noShow += 1;
       }
     } else {
-      byServiceMap.set(appointment.serviceId, {
-        serviceId: appointment.serviceId,
+      byServiceMap.set(booking.serviceId, {
+        serviceId: booking.serviceId,
         count: 1,
-        noShow: appointment.status === "no-show" ? 1 : 0
+        noShow: booking.status === "no_show" ? 1 : 0
       });
     }
   }
@@ -140,6 +157,107 @@ app.get("/metrics/overview", (req, res) => {
       noShow: noShowCount,
       noShowRate,
       byService
+    }
+  });
+});
+
+app.get("/metrics/timeseries", (req, res) => {
+  const { from, to, serviceId } = req.query;
+  const fromParam = typeof from === "string" ? from : undefined;
+  const toParam = typeof to === "string" ? to : undefined;
+  const serviceIdParam = typeof serviceId === "string" ? serviceId : undefined;
+
+  if (fromParam && !dateRegex.test(fromParam)) {
+    res
+      .status(400)
+      .json(errorResponse("BAD_REQUEST", "Parámetros inválidos", { field: "from" }));
+    return;
+  }
+
+  if (toParam && !dateRegex.test(toParam)) {
+    res
+      .status(400)
+      .json(errorResponse("BAD_REQUEST", "Parámetros inválidos", { field: "to" }));
+    return;
+  }
+
+  if (serviceIdParam !== undefined) {
+    const exists = demoData.services.some((service) => service.id === serviceIdParam);
+    if (!exists) {
+      res
+        .status(400)
+        .json(
+          errorResponse("BAD_REQUEST", "Parámetros inválidos", {
+            field: "serviceId"
+          })
+        );
+      return;
+    }
+  }
+
+  const fallbackDays =
+    demoData.defaults && typeof demoData.defaults.recommendedRangeDays === "number"
+      ? demoData.defaults.recommendedRangeDays
+      : 7;
+  const fallbackTo = demoData.rangeTo;
+  const fallbackFrom = shiftDate(fallbackTo, -(fallbackDays - 1));
+  const requestedFrom = fromParam ?? fallbackFrom;
+  const requestedTo = toParam ?? fallbackTo;
+
+  if (requestedTo < demoData.rangeFrom || requestedFrom > demoData.rangeTo) {
+    res.status(200).json({
+      ok: true,
+      series: [],
+      summary: {
+        from: requestedFrom,
+        to: requestedTo,
+        serviceId: serviceIdParam ?? null,
+        days: 0
+      }
+    });
+    return;
+  }
+
+  const effectiveFrom =
+    requestedFrom < demoData.rangeFrom ? demoData.rangeFrom : requestedFrom;
+  const effectiveTo = requestedTo > demoData.rangeTo ? demoData.rangeTo : requestedTo;
+  const dateRange = buildDateRange(effectiveFrom, effectiveTo);
+  const seriesMap = new Map(
+    dateRange.map((date) => [
+      date,
+      { date, total: 0, noShow: 0, cancelled: 0 }
+    ])
+  );
+
+  for (const booking of demoData.bookings) {
+    const date = booking.startAt.slice(0, 10);
+    if (date < effectiveFrom || date > effectiveTo) {
+      continue;
+    }
+    if (serviceIdParam !== undefined && booking.serviceId !== serviceIdParam) {
+      continue;
+    }
+    const entry = seriesMap.get(date);
+    if (!entry) {
+      continue;
+    }
+    entry.total += 1;
+    if (booking.status === "no_show") {
+      entry.noShow += 1;
+    } else if (booking.status === "cancelled") {
+      entry.cancelled += 1;
+    }
+  }
+
+  const series = Array.from(seriesMap.values());
+  res.status(200).json({
+    ok: true,
+    series,
+    summary: {
+      from: effectiveFrom,
+      to: effectiveTo,
+      serviceId: serviceIdParam ?? null,
+      days: series.length
     }
   });
 });
