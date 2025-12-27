@@ -51,3 +51,10 @@
 3) verificar build.gitSha/region no nulos si Railway los provee
 4) confirmar BOOT log en Railway
 5) Setear Healthcheck Path = /health (paso humano)
+
+## QA UI — Premium (TICKET-08)
+- Abrir Pages y validar paneles, estados y filtros visibles.
+- Aplicar y limpiar filtros; Overview cambia y no rompe.
+- Validar Contrato vivo con JSON de /health y /metrics/overview.
+- Forzar total 0 y ver mensaje Sin datos para este rango/servicio.
+- Caso error: VITE_API_BASE_URL invalida y ver ERROR sin crash.

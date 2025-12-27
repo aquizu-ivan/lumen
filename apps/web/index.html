@@ -4,47 +4,60 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LUMEN — Ops & Turnos</title>
+    <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <main>
-      <h1>LUMEN — Ops & Turnos</h1>
-      <section id="status">
-        <h2>Status</h2>
-        <div id="status-content">Loading...</div>
-      </section>
-      <section id="overview">
-        <h2>Overview</h2>
-        <div id="overview-content">Loading...</div>
-      </section>
-      <section id="filters">
-        <h2>Filtros</h2>
-        <div>
-          <label for="filter-from">From</label>
-          <input type="date" id="filter-from" />
+    <div class="page">
+      <header class="hero">
+        <p class="kicker">Observabilidad viva</p>
+        <h1>LUMEN — Ops & Turnos</h1>
+        <p class="subtitle">Ops y turnos con contrato vivo y metricas accionables.</p>
+        <div class="meta-line">
+          <span id="meta-service">service: n/a</span>
+          <span id="meta-env">env: n/a</span>
+          <span id="meta-started">startedAt: n/a</span>
+          <span id="meta-uptime">uptime: n/a</span>
         </div>
-        <div>
-          <label for="filter-to">To</label>
-          <input type="date" id="filter-to" />
-        </div>
-        <div>
-          <label for="filter-service">Service</label>
-          <select id="filter-service">
-            <option value="">Todos</option>
-          </select>
-        </div>
-        <div>
-          <button id="apply-filters" type="button">Aplicar</button>
-          <button id="clear-filters" type="button">Limpiar</button>
-        </div>
-      </section>
-      <section id="contract-live">
-        <h2>Contrato vivo</h2>
-        <h3>/health</h3>
-        <pre id="contract-health"></pre>
-        <h3>/metrics/overview</h3>
-        <pre id="contract-overview"></pre>
-      </section>
-    </main>
+      </header>
+      <main class="grid">
+        <section id="status" class="panel">
+          <h2>Status</h2>
+          <div id="status-content">Consultando /health...</div>
+        </section>
+        <section id="overview" class="panel">
+          <h2>Overview</h2>
+          <div id="overview-content">Consultando /metrics/overview...</div>
+        </section>
+        <section id="filters" class="panel full">
+          <h2>Filtros</h2>
+          <div>
+            <label for="filter-from">From</label>
+            <input type="date" id="filter-from" />
+          </div>
+          <div>
+            <label for="filter-to">To</label>
+            <input type="date" id="filter-to" />
+          </div>
+          <div>
+            <label for="filter-service">Service</label>
+            <select id="filter-service">
+              <option value="">Todos</option>
+            </select>
+          </div>
+          <div class="actions">
+            <button id="apply-filters" class="btn btn-primary" type="button">Aplicar</button>
+            <button id="clear-filters" class="btn btn-ghost" type="button">Limpiar</button>
+          </div>
+        </section>
+        <section id="contract-live" class="panel full">
+          <h2>Contrato vivo</h2>
+          <h3>/health</h3>
+          <pre id="contract-health">Consultando /health...</pre>
+          <h3>/metrics/overview</h3>
+          <pre id="contract-overview">Consultando /metrics/overview...</pre>
+        </section>
+      </main>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
