@@ -7,6 +7,7 @@ const metaUptimeEl = document.getElementById("meta-uptime");
 const filterFromEl = document.getElementById("filter-from");
 const filterToEl = document.getElementById("filter-to");
 const filterServiceEl = document.getElementById("filter-service");
+const filterNoteEl = document.getElementById("filter-note");
 const preset24Btn = document.getElementById("preset-24h");
 const preset7Btn = document.getElementById("preset-7d");
 const preset30Btn = document.getElementById("preset-30d");
@@ -23,17 +24,14 @@ const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const dateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 let pendingServiceId = "";
 let copyFeedbackTimeout = null;
+let filterNoteTimeout = null;
 
 function setText(el, text) {
   el.textContent = text;
 }
 
 function setError(el, info) {
-  if (info.type === "http") {
-    setText(el, `Error HTTP ${info.status}`);
-    return;
-  }
-  setText(el, "Error de red");
+  setText(el, describeError(info));
 }
 
 function setContractError(el, info) {
@@ -47,6 +45,42 @@ function setContractError(el, info) {
 function setContractJson(el, data) {
   const payload = data === undefined ? null : data;
   setText(el, JSON.stringify(payload, null, 2));
+}
+
+function describeError(info) {
+  if (info && info.type === "http") {
+    if (info.status >= 500) {
+      return "No se pudo cargar. Problema del servidor.";
+    }
+    return "No se pudo cargar. Revisa filtros o permisos.";
+  }
+  return "No se pudo conectar. Revisa conexion o CORS.";
+}
+
+function showFilterNote(message) {
+  if (!filterNoteEl) {
+    return;
+  }
+  filterNoteEl.textContent = message;
+  filterNoteEl.classList.add("is-visible");
+  if (filterNoteTimeout) {
+    clearTimeout(filterNoteTimeout);
+  }
+  filterNoteTimeout = setTimeout(() => {
+    filterNoteEl.classList.remove("is-visible");
+  }, 2200);
+}
+
+function clearFilterNote() {
+  if (!filterNoteEl) {
+    return;
+  }
+  filterNoteEl.classList.remove("is-visible");
+  filterNoteEl.textContent = "";
+  if (filterNoteTimeout) {
+    clearTimeout(filterNoteTimeout);
+    filterNoteTimeout = null;
+  }
 }
 
 function formatDate(value) {
@@ -70,17 +104,27 @@ function normalizeDate(value) {
 }
 
 function normalizeFilters(values) {
+  const rawFrom = values.from || "";
+  const rawTo = values.to || "";
   const normalized = {
-    from: normalizeDate(values.from),
-    to: normalizeDate(values.to),
+    from: normalizeDate(rawFrom),
+    to: normalizeDate(rawTo),
     serviceId: typeof values.serviceId === "string" ? values.serviceId : ""
   };
+  let corrected = false;
+  if (rawFrom && rawFrom !== normalized.from) {
+    corrected = true;
+  }
+  if (rawTo && rawTo !== normalized.to) {
+    corrected = true;
+  }
   if (normalized.from && normalized.to && normalized.from > normalized.to) {
     const temp = normalized.from;
     normalized.from = normalized.to;
     normalized.to = temp;
+    corrected = true;
   }
-  return normalized;
+  return { values: normalized, corrected };
 }
 
 function readFiltersFromInputs() {
@@ -209,7 +253,7 @@ function renderOverview(data) {
   if (total === 0) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = "Sin datos para este rango/servicio";
+    empty.textContent = "Sin datos para este rango/servicio. Proba presets 7d o 30d.";
     overviewEl.appendChild(empty);
   }
   const list = document.createElement("ul");
@@ -252,10 +296,8 @@ function renderStatusError(info, message) {
   const detail = document.createElement("div");
   if (message) {
     detail.textContent = message;
-  } else if (info && info.type === "http") {
-    detail.textContent = `HTTP ${info.status}`;
   } else {
-    detail.textContent = "Error de red";
+    detail.textContent = describeError(info);
   }
   statusEl.appendChild(detail);
   setMetaLine(null);
@@ -307,15 +349,20 @@ function applyServiceSelection(value) {
 function applyFilters(values) {
   const normalized = normalizeFilters(values);
   if (filterFromEl) {
-    filterFromEl.value = normalized.from;
+    filterFromEl.value = normalized.values.from;
   }
   if (filterToEl) {
-    filterToEl.value = normalized.to;
+    filterToEl.value = normalized.values.to;
   }
   if (filterServiceEl) {
-    filterServiceEl.value = normalized.serviceId;
+    filterServiceEl.value = normalized.values.serviceId;
   }
-  writeFiltersToUrl(normalized);
+  writeFiltersToUrl(normalized.values);
+  if (normalized.corrected) {
+    showFilterNote("Rango corregido automaticamente");
+  } else {
+    clearFilterNote();
+  }
   loadOverview();
 }
 
@@ -362,13 +409,16 @@ async function loadOverview() {
 async function init() {
   const initialFilters = normalizeFilters(readFiltersFromUrl());
   if (filterFromEl) {
-    filterFromEl.value = initialFilters.from;
+    filterFromEl.value = initialFilters.values.from;
   }
   if (filterToEl) {
-    filterToEl.value = initialFilters.to;
+    filterToEl.value = initialFilters.values.to;
   }
-  pendingServiceId = initialFilters.serviceId;
-  writeFiltersToUrl(initialFilters);
+  pendingServiceId = initialFilters.values.serviceId;
+  writeFiltersToUrl(initialFilters.values);
+  if (initialFilters.corrected) {
+    showFilterNote("Rango corregido automaticamente");
+  }
   setText(statusEl, "Consultando /health...");
   setText(overviewEl, "Consultando /metrics/overview...");
   setText(contractHealthEl, "Consultando /health...");

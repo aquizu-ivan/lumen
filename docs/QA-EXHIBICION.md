@@ -66,3 +66,19 @@
 - Probar from/to invalidos y confirmar fallback sin crash.
 - Preset 7d actualiza URL y datos.
 - Copiar link copia la URL actual (incluye serviceId si esta seteado).
+
+## Ticket-09 — Exhibicion completa
+- URLs demo:
+  - https://aquizu-ivan.github.io/lumen/?from=2025-01-05&to=2025-01-20
+  - https://aquizu-ivan.github.io/lumen/?from=2025-02-10&to=2025-02-01
+  - https://aquizu-ivan.github.io/lumen/?from=2025-01-01&to=2025-01-10&serviceId=svc-2
+- Pasos:
+  - Abrir URL, verificar hidratacion de inputs y Overview.
+  - Click preset 7d, confirmar URL actualiza sin reload.
+  - Click copiar link, ver feedback Copiado.
+  - Recargar y verificar persistencia de filtros.
+  - Confirmar base /lumen/ en URL.
+- Evidencia esperada:
+  - Nota "Rango corregido automaticamente" cuando from > to.
+  - Mensaje "Sin datos para este rango/servicio. Proba presets 7d o 30d." si total=0.
+  - Estado ERROR con texto de causa probable si falla la carga.

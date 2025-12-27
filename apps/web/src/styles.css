@@ -217,6 +217,20 @@ button:focus-visible {
   transform: translateY(0);
 }
 
+.filter-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.filter-note.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .btn-primary {
   background: var(--accent);
   color: #041316;
