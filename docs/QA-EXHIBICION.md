@@ -38,6 +38,13 @@
   }
 }
 ```
+
+## QA UI — Filtros + Contrato vivo
+- Abrir Pages y validar inputs/select/botones.
+- Aplicar filtro serviceId y ver cambiar totals.
+- Aplicar rango from/to y ver cambiar totals.
+- Validar que el JSON en pre coincide con /health y /metrics/overview.
+- Caso error: setear VITE_API_BASE_URL a URL invalida y ver estado ERROR sin crash.
 ## QA PROD — Identidad de deploy verificable
 1) curl /health sin Origin (debe dar 200)
 2) curl /health con Origin Pages (debe incluir Access-Control-Allow-Origin correcto)

@@ -16,6 +16,34 @@
         <h2>Overview</h2>
         <div id="overview-content">Loading...</div>
       </section>
+      <section id="filters">
+        <h2>Filtros</h2>
+        <div>
+          <label for="filter-from">From</label>
+          <input type="date" id="filter-from" />
+        </div>
+        <div>
+          <label for="filter-to">To</label>
+          <input type="date" id="filter-to" />
+        </div>
+        <div>
+          <label for="filter-service">Service</label>
+          <select id="filter-service">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div>
+          <button id="apply-filters" type="button">Aplicar</button>
+          <button id="clear-filters" type="button">Limpiar</button>
+        </div>
+      </section>
+      <section id="contract-live">
+        <h2>Contrato vivo</h2>
+        <h3>/health</h3>
+        <pre id="contract-health"></pre>
+        <h3>/metrics/overview</h3>
+        <pre id="contract-overview"></pre>
+      </section>
     </main>
     <script type="module" src="/src/main.js"></script>
   </body>

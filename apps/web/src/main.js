@@ -1,5 +1,12 @@
 const statusEl = document.getElementById("status-content");
 const overviewEl = document.getElementById("overview-content");
+const filterFromEl = document.getElementById("filter-from");
+const filterToEl = document.getElementById("filter-to");
+const filterServiceEl = document.getElementById("filter-service");
+const applyFiltersBtn = document.getElementById("apply-filters");
+const clearFiltersBtn = document.getElementById("clear-filters");
+const contractHealthEl = document.getElementById("contract-health");
+const contractOverviewEl = document.getElementById("contract-overview");
 
 const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const baseUrl = import.meta.env.DEV ? envBaseUrl || "http://localhost:4000" : envBaseUrl;
@@ -14,6 +21,18 @@ function setError(el, info) {
     return;
   }
   setText(el, "Error de red");
+}
+
+function setContractError(el, info) {
+  if (info && info.type === "http") {
+    setText(el, `ERROR HTTP ${info.status}`);
+    return;
+  }
+  setText(el, "ERROR network");
+}
+
+function setContractJson(el, data) {
+  setText(el, JSON.stringify(data, null, 2));
 }
 
 function clearEl(el) {
@@ -82,29 +101,105 @@ function renderOverview(data) {
   overviewEl.appendChild(list);
 }
 
+function populateServices(metaData) {
+  if (!filterServiceEl) {
+    return;
+  }
+  filterServiceEl.innerHTML = '<option value="">Todos</option>';
+  const services =
+    metaData && metaData.data && Array.isArray(metaData.data.services) ? metaData.data.services : [];
+  services.forEach((service) => {
+    if (!service || typeof service !== "object") {
+      return;
+    }
+    const id = typeof service.id === "string" ? service.id : "";
+    if (!id) {
+      return;
+    }
+    const name = typeof service.name === "string" ? service.name : id;
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = name;
+    filterServiceEl.appendChild(option);
+  });
+}
+
+function buildOverviewUrl() {
+  const params = new URLSearchParams();
+  if (filterFromEl && filterFromEl.value) {
+    params.set("from", filterFromEl.value);
+  }
+  if (filterToEl && filterToEl.value) {
+    params.set("to", filterToEl.value);
+  }
+  if (filterServiceEl && filterServiceEl.value) {
+    params.set("serviceId", filterServiceEl.value);
+  }
+  const query = params.toString();
+  return `${baseUrl}/metrics/overview${query ? `?${query}` : ""}`;
+}
+
+async function loadOverview() {
+  const overviewResult = await fetchJson(buildOverviewUrl());
+  if (!overviewResult.ok) {
+    setError(overviewEl, overviewResult);
+    setContractError(contractOverviewEl, overviewResult);
+  } else {
+    renderOverview(overviewResult.data.data);
+    setContractJson(contractOverviewEl, overviewResult.data);
+  }
+}
+
 async function init() {
   setText(statusEl, "Loading...");
   setText(overviewEl, "Loading...");
+  setText(contractHealthEl, "Loading...");
+  setText(contractOverviewEl, "Loading...");
 
   if (!baseUrl) {
     setText(statusEl, "Error: VITE_API_BASE_URL requerida en produccion");
     setText(overviewEl, "Error: VITE_API_BASE_URL requerida en produccion");
+    setText(contractHealthEl, "ERROR baseUrl");
+    setText(contractOverviewEl, "ERROR baseUrl");
     return;
   }
 
   const healthResult = await fetchJson(`${baseUrl}/health`);
   if (!healthResult.ok) {
     setText(statusEl, "ERROR");
+    setContractError(contractHealthEl, healthResult);
   } else {
     renderHealth(healthResult.data);
+    setContractJson(contractHealthEl, healthResult.data);
   }
 
-  const overviewResult = await fetchJson(`${baseUrl}/metrics/overview`);
-  if (!overviewResult.ok) {
-    setError(overviewEl, overviewResult);
-  } else {
-    renderOverview(overviewResult.data.data);
+  const metaResult = await fetchJson(`${baseUrl}/meta`);
+  if (metaResult.ok) {
+    populateServices(metaResult.data);
   }
+
+  await loadOverview();
+}
+
+if (applyFiltersBtn) {
+  applyFiltersBtn.addEventListener("click", () => {
+    loadOverview();
+  });
+}
+
+if (clearFiltersBtn) {
+  clearFiltersBtn.addEventListener("click", () => {
+    if (filterFromEl) {
+      filterFromEl.value = "";
+    }
+    if (filterToEl) {
+      filterToEl.value = "";
+    }
+    if (filterServiceEl) {
+      filterServiceEl.value = "";
+    }
+    loadOverview();
+  });
 }
 
 init();
