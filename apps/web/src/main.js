@@ -7,8 +7,13 @@ const metaUptimeEl = document.getElementById("meta-uptime");
 const filterFromEl = document.getElementById("filter-from");
 const filterToEl = document.getElementById("filter-to");
 const filterServiceEl = document.getElementById("filter-service");
+const preset24Btn = document.getElementById("preset-24h");
+const preset7Btn = document.getElementById("preset-7d");
+const preset30Btn = document.getElementById("preset-30d");
 const applyFiltersBtn = document.getElementById("apply-filters");
 const clearFiltersBtn = document.getElementById("clear-filters");
+const copyLinkBtn = document.getElementById("copy-link");
+const copyFeedbackEl = document.getElementById("copy-feedback");
 const contractHealthEl = document.getElementById("contract-health");
 const contractOverviewEl = document.getElementById("contract-overview");
 
@@ -17,6 +22,7 @@ const baseUrl = import.meta.env.DEV ? envBaseUrl || "http://localhost:4000" : en
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
 const dateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 let pendingServiceId = "";
+let copyFeedbackTimeout = null;
 
 function setText(el, text) {
   el.textContent = text;
@@ -41,6 +47,13 @@ function setContractError(el, info) {
 function setContractJson(el, data) {
   const payload = data === undefined ? null : data;
   setText(el, JSON.stringify(payload, null, 2));
+}
+
+function formatDate(value) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function normalizeDate(value) {
@@ -101,6 +114,44 @@ function writeFiltersToUrl(values) {
   const query = params.toString();
   const newUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
   window.history.replaceState({}, "", newUrl);
+}
+
+function copyText(value) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard
+      .writeText(value)
+      .then(() => true)
+      .catch(() => false);
+  }
+  const textarea = document.createElement("textarea");
+  textarea.value = value;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "absolute";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(textarea);
+  return Promise.resolve(ok);
+}
+
+function showCopyFeedback(message) {
+  if (!copyFeedbackEl) {
+    return;
+  }
+  copyFeedbackEl.textContent = message;
+  copyFeedbackEl.classList.add("is-visible");
+  if (copyFeedbackTimeout) {
+    clearTimeout(copyFeedbackTimeout);
+  }
+  copyFeedbackTimeout = setTimeout(() => {
+    copyFeedbackEl.classList.remove("is-visible");
+  }, 1200);
 }
 
 function clearEl(el) {
@@ -253,6 +304,33 @@ function applyServiceSelection(value) {
   filterServiceEl.value = value;
 }
 
+function applyFilters(values) {
+  const normalized = normalizeFilters(values);
+  if (filterFromEl) {
+    filterFromEl.value = normalized.from;
+  }
+  if (filterToEl) {
+    filterToEl.value = normalized.to;
+  }
+  if (filterServiceEl) {
+    filterServiceEl.value = normalized.serviceId;
+  }
+  writeFiltersToUrl(normalized);
+  loadOverview();
+}
+
+function applyPreset(days) {
+  const today = new Date();
+  const fromDate = new Date(today);
+  fromDate.setDate(today.getDate() - days);
+  const current = readFiltersFromInputs();
+  applyFilters({
+    from: formatDate(fromDate),
+    to: formatDate(today),
+    serviceId: current.serviceId
+  });
+}
+
 function buildOverviewUrl() {
   const params = new URLSearchParams();
   if (filterFromEl && filterFromEl.value) {
@@ -326,34 +404,38 @@ async function init() {
 
 if (applyFiltersBtn) {
   applyFiltersBtn.addEventListener("click", () => {
-    const normalized = normalizeFilters(readFiltersFromInputs());
-    if (filterFromEl) {
-      filterFromEl.value = normalized.from;
-    }
-    if (filterToEl) {
-      filterToEl.value = normalized.to;
-    }
-    if (filterServiceEl) {
-      filterServiceEl.value = normalized.serviceId;
-    }
-    writeFiltersToUrl(normalized);
-    loadOverview();
+    applyFilters(readFiltersFromInputs());
   });
 }
 
 if (clearFiltersBtn) {
   clearFiltersBtn.addEventListener("click", () => {
-    if (filterFromEl) {
-      filterFromEl.value = "";
-    }
-    if (filterToEl) {
-      filterToEl.value = "";
-    }
-    if (filterServiceEl) {
-      filterServiceEl.value = "";
-    }
-    writeFiltersToUrl({ from: "", to: "", serviceId: "" });
-    loadOverview();
+    applyFilters({ from: "", to: "", serviceId: "" });
+  });
+}
+
+if (preset24Btn) {
+  preset24Btn.addEventListener("click", () => {
+    applyPreset(1);
+  });
+}
+
+if (preset7Btn) {
+  preset7Btn.addEventListener("click", () => {
+    applyPreset(7);
+  });
+}
+
+if (preset30Btn) {
+  preset30Btn.addEventListener("click", () => {
+    applyPreset(30);
+  });
+}
+
+if (copyLinkBtn) {
+  copyLinkBtn.addEventListener("click", async () => {
+    const ok = await copyText(window.location.href);
+    showCopyFeedback(ok ? "Copiado" : "No se pudo copiar");
   });
 }
 

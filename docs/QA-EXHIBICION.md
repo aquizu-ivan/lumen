@@ -64,3 +64,5 @@
 - Aplicar filtros y confirmar update de URL sin reload.
 - Probar from > to y validar swap en UI + URL.
 - Probar from/to invalidos y confirmar fallback sin crash.
+- Preset 7d actualiza URL y datos.
+- Copiar link copia la URL actual (incluye serviceId si esta seteado).

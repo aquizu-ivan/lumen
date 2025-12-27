@@ -156,6 +156,26 @@ button:focus-visible {
   margin-top: 8px;
 }
 
+.filter-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 6px 0 10px;
+}
+
+.preset-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.copy-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .btn {
   padding: 10px 16px;
   border-radius: 10px;
@@ -163,6 +183,38 @@ button:focus-visible {
   border: 1px solid transparent;
   cursor: pointer;
   transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  border-color: var(--panel-border);
+  background: rgba(15, 20, 27, 0.8);
+  color: var(--text);
+}
+
+.btn-chip:hover {
+  border-color: rgba(76, 212, 198, 0.4);
+  color: var(--accent);
+}
+
+.btn-small {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+}
+
+.copy-feedback {
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.copy-feedback.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .btn-primary {
