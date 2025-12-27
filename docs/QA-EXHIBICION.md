@@ -17,3 +17,9 @@
 - URL Pages: https://USUARIO.github.io/lumen/
 - La web debe apuntar a Railway via VITE_API_BASE_URL (https).
 - Checklist: /health publico, /metrics/overview publico, web carga sin errores de consola.
+## QA PROD — Identidad de deploy verificable
+1) curl /health sin Origin (debe dar 200)
+2) curl /health con Origin Pages (debe incluir Access-Control-Allow-Origin correcto)
+3) verificar build.gitSha/region no nulos si Railway los provee
+4) confirmar BOOT log en Railway
+5) Setear Healthcheck Path = /health (paso humano)

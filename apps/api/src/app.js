@@ -29,7 +29,14 @@ app.get("/health", (req, res) => {
     service: "lumen-api",
     env: process.env.NODE_ENV ?? "development",
     startedAt,
-    version: "dev"
+    version: "dev",
+    build: {
+      gitSha: process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
+      deployId: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
+      serviceId: process.env.RAILWAY_SERVICE_ID ?? null,
+      serviceInstanceId: process.env.RAILWAY_SERVICE_INSTANCE_ID ?? null,
+      region: process.env.RAILWAY_REGION ?? null
+    }
   });
 });
 
