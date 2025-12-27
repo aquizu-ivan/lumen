@@ -14,6 +14,9 @@ const contractOverviewEl = document.getElementById("contract-overview");
 
 const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const baseUrl = import.meta.env.DEV ? envBaseUrl || "http://localhost:4000" : envBaseUrl;
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const dateTimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+let pendingServiceId = "";
 
 function setText(el, text) {
   el.textContent = text;
@@ -38,6 +41,66 @@ function setContractError(el, info) {
 function setContractJson(el, data) {
   const payload = data === undefined ? null : data;
   setText(el, JSON.stringify(payload, null, 2));
+}
+
+function normalizeDate(value) {
+  if (!value) {
+    return "";
+  }
+  if (dateRegex.test(value)) {
+    return value;
+  }
+  if (dateTimeRegex.test(value)) {
+    return value.slice(0, 10);
+  }
+  return "";
+}
+
+function normalizeFilters(values) {
+  const normalized = {
+    from: normalizeDate(values.from),
+    to: normalizeDate(values.to),
+    serviceId: typeof values.serviceId === "string" ? values.serviceId : ""
+  };
+  if (normalized.from && normalized.to && normalized.from > normalized.to) {
+    const temp = normalized.from;
+    normalized.from = normalized.to;
+    normalized.to = temp;
+  }
+  return normalized;
+}
+
+function readFiltersFromInputs() {
+  return {
+    from: filterFromEl ? filterFromEl.value : "",
+    to: filterToEl ? filterToEl.value : "",
+    serviceId: filterServiceEl ? filterServiceEl.value : ""
+  };
+}
+
+function readFiltersFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    from: params.get("from") || "",
+    to: params.get("to") || "",
+    serviceId: params.get("serviceId") || ""
+  };
+}
+
+function writeFiltersToUrl(values) {
+  const params = new URLSearchParams();
+  if (values.from) {
+    params.set("from", values.from);
+  }
+  if (values.to) {
+    params.set("to", values.to);
+  }
+  if (values.serviceId) {
+    params.set("serviceId", values.serviceId);
+  }
+  const query = params.toString();
+  const newUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
+  window.history.replaceState({}, "", newUrl);
 }
 
 function clearEl(el) {
@@ -168,6 +231,26 @@ function populateServices(metaData) {
     option.textContent = name;
     filterServiceEl.appendChild(option);
   });
+  applyServiceSelection(pendingServiceId);
+  pendingServiceId = "";
+}
+
+function applyServiceSelection(value) {
+  if (!filterServiceEl) {
+    return;
+  }
+  if (!value) {
+    filterServiceEl.value = "";
+    return;
+  }
+  const exists = Array.from(filterServiceEl.options).some((option) => option.value === value);
+  if (!exists) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    filterServiceEl.appendChild(option);
+  }
+  filterServiceEl.value = value;
 }
 
 function buildOverviewUrl() {
@@ -199,6 +282,15 @@ async function loadOverview() {
 }
 
 async function init() {
+  const initialFilters = normalizeFilters(readFiltersFromUrl());
+  if (filterFromEl) {
+    filterFromEl.value = initialFilters.from;
+  }
+  if (filterToEl) {
+    filterToEl.value = initialFilters.to;
+  }
+  pendingServiceId = initialFilters.serviceId;
+  writeFiltersToUrl(initialFilters);
   setText(statusEl, "Consultando /health...");
   setText(overviewEl, "Consultando /metrics/overview...");
   setText(contractHealthEl, "Consultando /health...");
@@ -224,6 +316,9 @@ async function init() {
   const metaResult = await fetchJson(`${baseUrl}/meta`);
   if (metaResult.ok) {
     populateServices(metaResult.data);
+  } else {
+    applyServiceSelection(pendingServiceId);
+    pendingServiceId = "";
   }
 
   await loadOverview();
@@ -231,6 +326,17 @@ async function init() {
 
 if (applyFiltersBtn) {
   applyFiltersBtn.addEventListener("click", () => {
+    const normalized = normalizeFilters(readFiltersFromInputs());
+    if (filterFromEl) {
+      filterFromEl.value = normalized.from;
+    }
+    if (filterToEl) {
+      filterToEl.value = normalized.to;
+    }
+    if (filterServiceEl) {
+      filterServiceEl.value = normalized.serviceId;
+    }
+    writeFiltersToUrl(normalized);
     loadOverview();
   });
 }
@@ -246,6 +352,7 @@ if (clearFiltersBtn) {
     if (filterServiceEl) {
       filterServiceEl.value = "";
     }
+    writeFiltersToUrl({ from: "", to: "", serviceId: "" });
     loadOverview();
   });
 }

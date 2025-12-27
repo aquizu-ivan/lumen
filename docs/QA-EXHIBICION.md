@@ -58,3 +58,9 @@
 - Validar Contrato vivo con JSON de /health y /metrics/overview.
 - Forzar total 0 y ver mensaje Sin datos para este rango/servicio.
 - Caso error: VITE_API_BASE_URL invalida y ver ERROR sin crash.
+
+## QA UI — URL sync (TICKET-09)
+- Abrir con query params y ver inputs hidratados + Overview actualizado.
+- Aplicar filtros y confirmar update de URL sin reload.
+- Probar from > to y validar swap en UI + URL.
+- Probar from/to invalidos y confirmar fallback sin crash.
