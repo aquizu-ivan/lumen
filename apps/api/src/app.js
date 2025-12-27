@@ -24,12 +24,14 @@ app.use((req, res, next) => {
 });
 
 app.get("/health", (req, res) => {
+  const uptimeSeconds = Math.floor((Date.now() - Date.parse(startedAt)) / 1000);
   res.status(200).json({
     ok: true,
     service: "lumen-api",
     env: process.env.NODE_ENV ?? "development",
     startedAt,
     version: "dev",
+    uptimeSeconds,
     build: {
       gitSha: process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
       deployId: process.env.RAILWAY_DEPLOYMENT_ID ?? null,
