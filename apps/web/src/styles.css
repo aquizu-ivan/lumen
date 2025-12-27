@@ -71,6 +71,46 @@ h1 {
   color: var(--muted);
 }
 
+.demo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.demo-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.demo-toggle input {
+  accent-color: var(--accent);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(76, 212, 198, 0.4);
+  background: rgba(76, 212, 198, 0.15);
+  color: var(--accent);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.pill.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .grid {
   display: grid;
   gap: 20px;
@@ -144,7 +184,8 @@ select {
 
 input:focus-visible,
 select:focus-visible,
-button:focus-visible {
+button:focus-visible,
+summary:focus-visible {
   outline: 2px solid var(--accent-strong);
   outline-offset: 2px;
   box-shadow: 0 0 0 4px rgba(76, 212, 198, 0.15);
@@ -231,6 +272,43 @@ button:focus-visible {
 .filter-note.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+.contract-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.contract-section summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.contract-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.contract-section summary::after {
+  content: "+";
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.contract-section[open] summary::after {
+  content: "–";
+}
+
+.contract-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 12px;
 }
 
 .btn-primary {
