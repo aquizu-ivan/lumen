@@ -277,6 +277,18 @@ button:focus-visible {
   color: var(--error);
 }
 
+.updated-line {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.updated-line.is-visible {
+  opacity: 1;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
