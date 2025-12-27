@@ -1,5 +1,9 @@
 const statusEl = document.getElementById("status-content");
 const overviewEl = document.getElementById("overview-content");
+const metaServiceEl = document.getElementById("meta-service");
+const metaEnvEl = document.getElementById("meta-env");
+const metaStartedEl = document.getElementById("meta-started");
+const metaUptimeEl = document.getElementById("meta-uptime");
 const filterFromEl = document.getElementById("filter-from");
 const filterToEl = document.getElementById("filter-to");
 const filterServiceEl = document.getElementById("filter-service");
@@ -32,7 +36,8 @@ function setContractError(el, info) {
 }
 
 function setContractJson(el, data) {
-  setText(el, JSON.stringify(data, null, 2));
+  const payload = data === undefined ? null : data;
+  setText(el, JSON.stringify(payload, null, 2));
 }
 
 function clearEl(el) {
@@ -67,8 +72,10 @@ function renderHealth(data) {
     ["gitSha", "deployId", "serviceId", "serviceInstanceId", "region"].every((key) => key in build);
   const statusText = data && data.ok === true && hasBase && hasBuild ? "OK" : "DEGRADED";
   const statusLine = document.createElement("div");
+  statusLine.className = `status-pill status-${statusText.toLowerCase()}`;
   statusLine.textContent = `Status: ${statusText}`;
   statusEl.appendChild(statusLine);
+  setMetaLine(data);
   const service = data && typeof data.service === "string" ? data.service : "n/a";
   const env = data && typeof data.env === "string" ? data.env : "n/a";
   const startedAt = data && typeof data.startedAt === "string" ? data.startedAt : "n/a";
@@ -85,6 +92,12 @@ function renderOverview(data) {
   const summary = document.createElement("div");
   summary.textContent = `total: ${total} | noShowRate: ${noShowRate}`;
   overviewEl.appendChild(summary);
+  if (total === 0) {
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "Sin datos para este rango/servicio";
+    overviewEl.appendChild(empty);
+  }
   const list = document.createElement("ul");
   const byService = Array.isArray(safeData.byService) ? safeData.byService : [];
   byService.forEach((item) => {
@@ -99,6 +112,39 @@ function renderOverview(data) {
     list.appendChild(li);
   });
   overviewEl.appendChild(list);
+}
+
+function setMetaLine(data) {
+  if (!metaServiceEl || !metaEnvEl || !metaStartedEl || !metaUptimeEl) {
+    return;
+  }
+  const service = data && typeof data.service === "string" ? data.service : "n/a";
+  const env = data && typeof data.env === "string" ? data.env : "n/a";
+  const startedAt = data && typeof data.startedAt === "string" ? data.startedAt : "n/a";
+  const uptimeSeconds = data && typeof data.uptimeSeconds === "number" ? data.uptimeSeconds : null;
+  const uptime = uptimeSeconds === null ? "n/a" : `${uptimeSeconds}s`;
+  metaServiceEl.textContent = `service: ${service}`;
+  metaEnvEl.textContent = `env: ${env}`;
+  metaStartedEl.textContent = `startedAt: ${startedAt}`;
+  metaUptimeEl.textContent = `uptime: ${uptime}`;
+}
+
+function renderStatusError(info, message) {
+  clearEl(statusEl);
+  const statusLine = document.createElement("div");
+  statusLine.className = "status-pill status-error";
+  statusLine.textContent = "Status: ERROR";
+  statusEl.appendChild(statusLine);
+  const detail = document.createElement("div");
+  if (message) {
+    detail.textContent = message;
+  } else if (info && info.type === "http") {
+    detail.textContent = `HTTP ${info.status}`;
+  } else {
+    detail.textContent = "Error de red";
+  }
+  statusEl.appendChild(detail);
+  setMetaLine(null);
 }
 
 function populateServices(metaData) {
@@ -140,6 +186,8 @@ function buildOverviewUrl() {
 }
 
 async function loadOverview() {
+  setText(overviewEl, "Consultando /metrics/overview...");
+  setText(contractOverviewEl, "Consultando /metrics/overview...");
   const overviewResult = await fetchJson(buildOverviewUrl());
   if (!overviewResult.ok) {
     setError(overviewEl, overviewResult);
@@ -151,13 +199,13 @@ async function loadOverview() {
 }
 
 async function init() {
-  setText(statusEl, "Loading...");
-  setText(overviewEl, "Loading...");
-  setText(contractHealthEl, "Loading...");
-  setText(contractOverviewEl, "Loading...");
+  setText(statusEl, "Consultando /health...");
+  setText(overviewEl, "Consultando /metrics/overview...");
+  setText(contractHealthEl, "Consultando /health...");
+  setText(contractOverviewEl, "Consultando /metrics/overview...");
 
   if (!baseUrl) {
-    setText(statusEl, "Error: VITE_API_BASE_URL requerida en produccion");
+    renderStatusError(null, "VITE_API_BASE_URL requerida en produccion");
     setText(overviewEl, "Error: VITE_API_BASE_URL requerida en produccion");
     setText(contractHealthEl, "ERROR baseUrl");
     setText(contractOverviewEl, "ERROR baseUrl");
@@ -166,7 +214,7 @@ async function init() {
 
   const healthResult = await fetchJson(`${baseUrl}/health`);
   if (!healthResult.ok) {
-    setText(statusEl, "ERROR");
+    renderStatusError(healthResult);
     setContractError(contractHealthEl, healthResult);
   } else {
     renderHealth(healthResult.data);

@@ -1,0 +1,220 @@
+:root {
+  color-scheme: dark;
+  --bg: #0c1116;
+  --bg-glow: rgba(76, 212, 198, 0.08);
+  --panel: #121820;
+  --panel-border: #1f2a33;
+  --text: #e7edf2;
+  --muted: #9aa6b2;
+  --accent: #4cd4c6;
+  --accent-strong: #6ff1e2;
+  --warning: #f5c16c;
+  --error: #ff6b6b;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: radial-gradient(1200px 800px at 20% -10%, var(--bg-glow), transparent),
+    radial-gradient(800px 600px at 90% 10%, rgba(102, 133, 255, 0.08), transparent),
+    var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+.hero {
+  margin-bottom: 28px;
+}
+
+.kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+h1 {
+  margin: 6px 0 6px;
+  font-size: clamp(2.1rem, 4vw, 3rem);
+  line-height: 1.15;
+}
+
+.subtitle {
+  margin: 0 0 16px;
+  max-width: 60ch;
+  color: var(--muted);
+}
+
+.meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: rgba(12, 16, 21, 0.7);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+.panel {
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+}
+
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+.panel h3 {
+  margin: 16px 0 8px;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.status-ok {
+  color: var(--accent);
+  border: 1px solid rgba(76, 212, 198, 0.35);
+  background: rgba(76, 212, 198, 0.12);
+}
+
+.status-degraded {
+  color: var(--warning);
+  border: 1px solid rgba(245, 193, 108, 0.35);
+  background: rgba(245, 193, 108, 0.12);
+}
+
+.status-error {
+  color: var(--error);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  background: rgba(255, 107, 107, 0.12);
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+input,
+select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: #0f141b;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.btn {
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #041316;
+}
+
+.btn-primary:hover {
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--panel-border);
+}
+
+.btn-ghost:hover {
+  border-color: rgba(76, 212, 198, 0.4);
+  color: var(--accent);
+}
+
+.empty {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+pre {
+  margin: 0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: #0b0f14;
+  color: #c7d1da;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  overflow-x: auto;
+}
+
+ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .panel.full {
+    grid-column: 1 / -1;
+  }
+}
