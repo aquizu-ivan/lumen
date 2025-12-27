@@ -89,3 +89,9 @@
 - Empty-state guiado: total=0 mantiene mensaje de sin datos y sugiere presets.
 - Confirmar sin flashes ni paneles en blanco sin texto.
 - Base /lumen/ intacta.
+
+## Ticket-11 — Accesibilidad premium
+- Navegacion por teclado: TAB y SHIFT+TAB recorren inputs, select, presets, copiar link y acciones.
+- Foco visible consistente en botones, inputs y select.
+- Estados anunciados: inicial, loading, sin datos y error se leen con aria-live.
+- Confirmar que no cambia la estetica ni el layout.
