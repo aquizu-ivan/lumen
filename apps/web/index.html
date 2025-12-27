@@ -18,6 +18,13 @@
           <span id="meta-started">startedAt: n/a</span>
           <span id="meta-uptime">uptime: n/a</span>
         </div>
+        <div class="demo-row">
+          <label class="demo-toggle" for="demo-toggle">
+            <input type="checkbox" id="demo-toggle" />
+            <span>Modo demo</span>
+          </label>
+          <span id="demo-pill" class="pill" aria-hidden="true">Demo</span>
+        </div>
       </header>
       <main class="grid">
         <section id="status" class="panel">
@@ -68,10 +75,26 @@
         </section>
         <section id="contract-live" class="panel full">
           <h2>Contrato vivo</h2>
-          <h3>/health</h3>
-          <pre id="contract-health">Consultando /health...</pre>
-          <h3>/metrics/overview</h3>
-          <pre id="contract-overview">Consultando /metrics/overview...</pre>
+          <details id="contract-health-section" class="contract-section">
+            <summary><span>/health</span></summary>
+            <div class="contract-actions">
+              <button id="copy-health" class="btn btn-ghost btn-small" type="button">
+                Copiar JSON
+              </button>
+              <span id="copy-health-feedback" class="copy-feedback" aria-live="polite"></span>
+            </div>
+            <pre id="contract-health">Consultando /health...</pre>
+          </details>
+          <details id="contract-overview-section" class="contract-section">
+            <summary><span>/metrics/overview</span></summary>
+            <div class="contract-actions">
+              <button id="copy-overview" class="btn btn-ghost btn-small" type="button">
+                Copiar JSON
+              </button>
+              <span id="copy-overview-feedback" class="copy-feedback" aria-live="polite"></span>
+            </div>
+            <pre id="contract-overview">Consultando /metrics/overview...</pre>
+          </details>
         </section>
       </main>
     </div>

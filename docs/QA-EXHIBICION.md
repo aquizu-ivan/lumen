@@ -100,3 +100,10 @@
 - Aplicar mismos filtros 2 veces dentro de 30s: no hay loading duro y "Actualizado hace Xs" se mantiene.
 - Doble accion rapida con misma key: no hay parpadeo y se mantiene una sola actualizacion visible.
 - Esperar mas de 30s y reaplicar: vuelve a cargar y se actualiza el timestamp.
+
+## Ticket-13 — Demo curada + contrato vivo
+- URL demo: https://aquizu-ivan.github.io/lumen/?demo=1
+- Demo activo: aplica 7d, mantiene serviceId si existe y abre contrato vivo.
+- Toggle demo: agrega demo=1 al activar y lo remueve al desactivar sin borrar filtros.
+- Copiar JSON: health y overview muestran feedback Copiado.
+- Accesibilidad: TAB y ENTER/SPACE funcionan en toggle, colapsables y copiar JSON.

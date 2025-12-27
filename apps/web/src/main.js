@@ -8,6 +8,8 @@ const filterFromEl = document.getElementById("filter-from");
 const filterToEl = document.getElementById("filter-to");
 const filterServiceEl = document.getElementById("filter-service");
 const filterNoteEl = document.getElementById("filter-note");
+const demoToggleEl = document.getElementById("demo-toggle");
+const demoPillEl = document.getElementById("demo-pill");
 const preset24Btn = document.getElementById("preset-24h");
 const preset7Btn = document.getElementById("preset-7d");
 const preset30Btn = document.getElementById("preset-30d");
@@ -17,6 +19,12 @@ const copyLinkBtn = document.getElementById("copy-link");
 const copyFeedbackEl = document.getElementById("copy-feedback");
 const contractHealthEl = document.getElementById("contract-health");
 const contractOverviewEl = document.getElementById("contract-overview");
+const contractHealthSectionEl = document.getElementById("contract-health-section");
+const contractOverviewSectionEl = document.getElementById("contract-overview-section");
+const copyHealthBtn = document.getElementById("copy-health");
+const copyOverviewBtn = document.getElementById("copy-overview");
+const copyHealthFeedbackEl = document.getElementById("copy-health-feedback");
+const copyOverviewFeedbackEl = document.getElementById("copy-overview-feedback");
 const statusAnnounceEl = document.getElementById("status-announce");
 const overviewAnnounceEl = document.getElementById("overview-announce");
 const overviewUpdatedEl = document.getElementById("overview-updated");
@@ -30,6 +38,8 @@ let copyFeedbackTimeout = null;
 let filterNoteTimeout = null;
 let lastStatusAnnouncement = "";
 let lastOverviewAnnouncement = "";
+let demoMode = false;
+const feedbackTimeouts = new Map();
 const overviewCache = new Map();
 const overviewInflight = new Map();
 const OVERVIEW_TTL_MS = 30000;
@@ -53,6 +63,27 @@ function setContractError(el, info) {
 function setContractJson(el, data) {
   const payload = data === undefined ? null : data;
   setText(el, JSON.stringify(payload, null, 2));
+}
+
+function readDemoFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("demo") === "1";
+}
+
+function setDemoMode(enabled) {
+  demoMode = enabled;
+  if (demoToggleEl) {
+    demoToggleEl.checked = enabled;
+  }
+  if (demoPillEl) {
+    demoPillEl.classList.toggle("is-visible", enabled);
+  }
+  if (contractHealthSectionEl) {
+    contractHealthSectionEl.open = enabled;
+  }
+  if (contractOverviewSectionEl) {
+    contractOverviewSectionEl.open = enabled;
+  }
 }
 
 function announceStatus(message) {
@@ -240,6 +271,9 @@ function writeFiltersToUrl(values) {
   if (values.serviceId) {
     params.set("serviceId", values.serviceId);
   }
+  if (demoMode) {
+    params.set("demo", "1");
+  }
   const query = params.toString();
   const newUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
   window.history.replaceState({}, "", newUrl);
@@ -281,6 +315,21 @@ function showCopyFeedback(message) {
   copyFeedbackTimeout = setTimeout(() => {
     copyFeedbackEl.classList.remove("is-visible");
   }, 1200);
+}
+
+function showInlineFeedback(el, message) {
+  if (!el) {
+    return;
+  }
+  el.textContent = message;
+  el.classList.add("is-visible");
+  if (feedbackTimeouts.has(el)) {
+    clearTimeout(feedbackTimeouts.get(el));
+  }
+  const timeout = setTimeout(() => {
+    el.classList.remove("is-visible");
+  }, 1200);
+  feedbackTimeouts.set(el, timeout);
 }
 
 function clearEl(el) {
@@ -450,6 +499,14 @@ function applyServiceSelection(value) {
   filterServiceEl.value = value;
 }
 
+function getFirstServiceId() {
+  if (!filterServiceEl) {
+    return "";
+  }
+  const option = Array.from(filterServiceEl.options).find((item) => item.value);
+  return option ? option.value : "";
+}
+
 function applyFilters(values) {
   const normalized = normalizeFilters(values);
   if (filterFromEl) {
@@ -485,6 +542,19 @@ function applyPreset(days) {
     from: formatDate(fromDate),
     to: formatDate(today),
     serviceId: current.serviceId
+  });
+}
+
+function applyDemoFilters() {
+  const today = new Date();
+  const fromDate = new Date(today);
+  fromDate.setDate(today.getDate() - 7);
+  const current = readFiltersFromInputs();
+  const serviceId = current.serviceId || getFirstServiceId();
+  applyFilters({
+    from: formatDate(fromDate),
+    to: formatDate(today),
+    serviceId
   });
 }
 
@@ -532,6 +602,8 @@ async function loadOverview() {
 }
 
 async function init() {
+  const demoFromUrl = readDemoFromUrl();
+  setDemoMode(demoFromUrl);
   const initialFilters = normalizeFilters(readFiltersFromUrl());
   if (filterFromEl) {
     filterFromEl.value = initialFilters.values.from;
@@ -579,6 +651,11 @@ async function init() {
     pendingServiceId = "";
   }
 
+  if (demoMode) {
+    applyDemoFilters();
+    return;
+  }
+
   if (initialFilters.values.from || initialFilters.values.to || initialFilters.values.serviceId) {
     await loadOverview();
   }
@@ -618,6 +695,34 @@ if (copyLinkBtn) {
   copyLinkBtn.addEventListener("click", async () => {
     const ok = await copyText(window.location.href);
     showCopyFeedback(ok ? "Copiado" : "No se pudo copiar");
+  });
+}
+
+if (demoToggleEl) {
+  demoToggleEl.addEventListener("change", () => {
+    const enabled = demoToggleEl.checked;
+    setDemoMode(enabled);
+    if (enabled) {
+      applyDemoFilters();
+    } else {
+      writeFiltersToUrl(readFiltersFromInputs());
+    }
+  });
+}
+
+if (copyHealthBtn) {
+  copyHealthBtn.addEventListener("click", async () => {
+    const text = contractHealthEl ? contractHealthEl.textContent : "";
+    const ok = await copyText(text);
+    showInlineFeedback(copyHealthFeedbackEl, ok ? "Copiado" : "No se pudo copiar");
+  });
+}
+
+if (copyOverviewBtn) {
+  copyOverviewBtn.addEventListener("click", async () => {
+    const text = contractOverviewEl ? contractOverviewEl.textContent : "";
+    const ok = await copyText(text);
+    showInlineFeedback(copyOverviewFeedbackEl, ok ? "Copiado" : "No se pudo copiar");
   });
 }
 
