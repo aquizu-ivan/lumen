@@ -11,13 +11,7 @@
       <header class="hero">
         <p class="kicker">Observabilidad viva</p>
         <h1>LUMEN — Ops & Turnos</h1>
-        <p class="subtitle">Ops y turnos con contrato vivo y metricas accionables.</p>
-        <div class="meta-line">
-          <span id="meta-service">service: n/a</span>
-          <span id="meta-env">env: n/a</span>
-          <span id="meta-started">startedAt: n/a</span>
-          <span id="meta-uptime">uptime: n/a</span>
-        </div>
+        <p class="subtitle">Turnos claros, decisiones rapidas.</p>
         <div class="demo-row">
           <label class="demo-toggle" for="demo-toggle">
             <input type="checkbox" id="demo-toggle" />
@@ -27,16 +21,18 @@
         </div>
       </header>
       <main class="grid">
-        <section id="status" class="panel">
-          <h2>Status</h2>
-          <div id="status-content">Consultando /health...</div>
-          <div id="status-announce" class="sr-only" aria-live="polite"></div>
-        </section>
-        <section id="overview" class="panel">
-          <h2>Overview</h2>
-          <div id="overview-content">Consultando /metrics/overview...</div>
+        <section id="summary" class="panel full summary-panel">
+          <div class="summary-header">
+            <h2>Resumen</h2>
+            <span id="system-pill" class="status-pill system-pill">Sistema</span>
+          </div>
+          <div id="overview-content">Consultando resumen...</div>
           <div id="overview-updated" class="updated-line"></div>
           <div id="overview-announce" class="sr-only" aria-live="polite"></div>
+        </section>
+        <section id="insights" class="panel full">
+          <h2>Insights</h2>
+          <div id="insights-content" aria-live="polite">Consultando insights...</div>
         </section>
         <section id="trend" class="panel full">
           <h2>Tendencia (turnos/dia)</h2>
@@ -83,27 +79,45 @@
           </div>
           <p id="filter-note" class="filter-note" aria-live="polite"></p>
         </section>
-        <section id="contract-live" class="panel full">
-          <h2>Contrato vivo</h2>
-          <details id="contract-health-section" class="contract-section">
-            <summary><span>/health</span></summary>
-            <div class="contract-actions">
-              <button id="copy-health" class="btn btn-ghost btn-small" type="button">
-                Copiar JSON
-              </button>
-              <span id="copy-health-feedback" class="copy-feedback" aria-live="polite"></span>
+        <section id="technical" class="panel full">
+          <details id="technical-section" class="technical-section">
+            <summary>Tecnica</summary>
+            <div class="technical-body">
+              <div class="technical-block">
+                <h3>Estado del sistema</h3>
+                <div id="status-content">Consultando /health...</div>
+                <div id="status-announce" class="sr-only" aria-live="polite"></div>
+                <div class="meta-line">
+                  <span id="meta-service">service: n/a</span>
+                  <span id="meta-env">env: n/a</span>
+                  <span id="meta-started">startedAt: n/a</span>
+                  <span id="meta-uptime">uptime: n/a</span>
+                </div>
+              </div>
+              <div class="technical-block">
+                <h3>Contrato vivo</h3>
+                <details id="contract-health-section" class="contract-section">
+                  <summary><span>/health</span></summary>
+                  <div class="contract-actions">
+                    <button id="copy-health" class="btn btn-ghost btn-small" type="button">
+                      Copiar JSON
+                    </button>
+                    <span id="copy-health-feedback" class="copy-feedback" aria-live="polite"></span>
+                  </div>
+                  <pre id="contract-health">Consultando /health...</pre>
+                </details>
+                <details id="contract-overview-section" class="contract-section">
+                  <summary><span>/metrics/overview</span></summary>
+                  <div class="contract-actions">
+                    <button id="copy-overview" class="btn btn-ghost btn-small" type="button">
+                      Copiar JSON
+                    </button>
+                    <span id="copy-overview-feedback" class="copy-feedback" aria-live="polite"></span>
+                  </div>
+                  <pre id="contract-overview">Consultando /metrics/overview...</pre>
+                </details>
+              </div>
             </div>
-            <pre id="contract-health">Consultando /health...</pre>
-          </details>
-          <details id="contract-overview-section" class="contract-section">
-            <summary><span>/metrics/overview</span></summary>
-            <div class="contract-actions">
-              <button id="copy-overview" class="btn btn-ghost btn-small" type="button">
-                Copiar JSON
-              </button>
-              <span id="copy-overview-feedback" class="copy-feedback" aria-live="polite"></span>
-            </div>
-            <pre id="contract-overview">Consultando /metrics/overview...</pre>
           </details>
         </section>
       </main>
