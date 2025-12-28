@@ -186,3 +186,13 @@
    - Cambiar tamaño de ventana y confirmar ajuste de charts.
 4) No regresiones:
    - Presets anclados a /meta, cache/dedupe intactos, técnica sigue gated por debug=1.
+
+## Exhibición final
+1) Fold:
+   - En 1366x768 se ve Hoy + Resumen + Lecturas clave sin scroll grande.
+2) Compartir demo:
+   - Click en "Compartir demo" => "Link copiado".
+   - Abrir el link en nueva pestaña: entra en modo demo con filtros actuales.
+3) Debug:
+   - Modo cliente: no aparece técnica ni en DOM.
+   - Con debug=1: aparece "Información técnica" colapsada.

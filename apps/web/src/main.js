@@ -19,6 +19,8 @@ const applyFiltersBtn = document.getElementById("apply-filters");
 const clearFiltersBtn = document.getElementById("clear-filters");
 const copyLinkBtn = document.getElementById("copy-link");
 const copyFeedbackEl = document.getElementById("copy-feedback");
+const shareDemoBtn = document.getElementById("share-demo");
+const shareFeedbackEl = document.getElementById("share-feedback");
 const contractHealthEl = document.getElementById("contract-health");
 const contractOverviewEl = document.getElementById("contract-overview");
 const contractHealthSectionEl = document.getElementById("contract-health-section");
@@ -432,6 +434,29 @@ function writeFiltersToUrl(values) {
   const query = params.toString();
   const newUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
   window.history.replaceState({}, "", newUrl);
+}
+
+function buildShareDemoUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const current = readFiltersFromInputs();
+  if (current.from) {
+    params.set("from", current.from);
+  } else {
+    params.delete("from");
+  }
+  if (current.to) {
+    params.set("to", current.to);
+  } else {
+    params.delete("to");
+  }
+  if (current.serviceId) {
+    params.set("serviceId", current.serviceId);
+  } else {
+    params.delete("serviceId");
+  }
+  params.set("demo", "1");
+  const query = params.toString();
+  return `${window.location.origin}${window.location.pathname}${query ? `?${query}` : ""}`;
 }
 
 function copyText(value) {
@@ -1862,6 +1887,14 @@ if (copyLinkBtn) {
   copyLinkBtn.addEventListener("click", async () => {
     const ok = await copyText(window.location.href);
     showCopyFeedback(ok ? "Copiado" : "No se pudo copiar");
+  });
+}
+
+if (shareDemoBtn) {
+  shareDemoBtn.addEventListener("click", async () => {
+    const url = buildShareDemoUrl();
+    const ok = await copyText(url);
+    showInlineFeedback(shareFeedbackEl, ok ? "Link copiado" : "No se pudo copiar");
   });
 }
 
