@@ -32,11 +32,11 @@ body {
 .page {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 32px 20px 64px;
+  padding: 28px 20px 56px;
 }
 
 .hero {
-  margin-bottom: 28px;
+  margin-bottom: 20px;
 }
 
 .kicker {
@@ -54,7 +54,7 @@ h1 {
 }
 
 .subtitle {
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   max-width: 60ch;
   color: var(--muted);
 }
@@ -76,7 +76,14 @@ h1 {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 14px;
+  margin-top: 10px;
+}
+
+.share-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
 }
 
 .demo-toggle {
@@ -114,14 +121,18 @@ h1 {
 
 .grid {
   display: grid;
-  gap: 22px;
+  gap: 18px;
 }
 
 .panel {
-  padding: 20px 22px;
+  padding: 18px 22px;
   border-radius: 16px;
   background: var(--panel);
   border: 1px solid rgba(31, 42, 51, 0.55);
+}
+
+.panel-compact {
+  padding: 14px 20px;
 }
 
 .panel h2 {
@@ -217,7 +228,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .status-pill {
@@ -585,7 +596,7 @@ summary:focus-visible {
 
 .trend-echart {
   width: 100%;
-  height: 190px;
+  height: 240px;
 }
 
 .trend-svg {
@@ -647,7 +658,7 @@ summary:focus-visible {
 
 .heatmap-echart {
   width: 100%;
-  height: 260px;
+  height: 300px;
 }
 
 .heatmap-svg {
@@ -754,7 +765,7 @@ ul {
 
 @media (max-width: 600px) {
   .page {
-    padding: 24px 16px 48px;
+    padding: 22px 16px 44px;
   }
 
   .hero {
@@ -775,11 +786,15 @@ ul {
   }
 
   .grid {
-    gap: 16px;
+    gap: 14px;
   }
 
   .panel {
-    padding: 16px;
+    padding: 14px;
+  }
+
+  .panel-compact {
+    padding: 12px 14px;
   }
 
   .panel h2 {
@@ -818,7 +833,7 @@ ul {
   }
 
   .trend-echart {
-    height: 170px;
+    height: 190px;
   }
 
   .trend-meta {
@@ -830,7 +845,7 @@ ul {
   }
 
   .heatmap-echart {
-    height: 220px;
+    height: 230px;
   }
 
   .heatmap-legend {
@@ -867,5 +882,15 @@ ul {
 
   .grid {
     gap: 22px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .trend-echart {
+    height: 260px;
+  }
+
+  .heatmap-echart {
+    height: 320px;
   }
 }

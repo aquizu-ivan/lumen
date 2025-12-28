@@ -19,14 +19,20 @@
           </label>
           <span id="demo-pill" class="pill" aria-hidden="true">Muestra</span>
         </div>
+        <div class="share-row">
+          <button id="share-demo" class="btn btn-ghost btn-small" type="button" aria-label="Compartir demo">
+            Compartir demo
+          </button>
+          <span id="share-feedback" class="copy-feedback" aria-live="polite"></span>
+        </div>
       </header>
       <main class="grid">
-        <section id="today" class="panel full today-panel">
+        <section id="today" class="panel full today-panel panel-compact">
           <h2>Hoy en tu operación</h2>
           <p class="panel-kicker">Lo esencial para decidir hoy.</p>
           <div id="today-content">Cargando...</div>
         </section>
-        <section id="summary" class="panel full summary-panel">
+        <section id="summary" class="panel full summary-panel panel-compact">
           <div class="summary-header">
             <h2>Resumen</h2>
             <span id="system-pill" class="status-pill system-pill">Operación activa</span>
@@ -36,7 +42,7 @@
           <div id="overview-updated" class="updated-line"></div>
           <div id="overview-announce" class="sr-only" aria-live="polite"></div>
         </section>
-        <section id="insights" class="panel full">
+        <section id="insights" class="panel full panel-compact">
           <h2>Lecturas clave</h2>
           <p class="panel-kicker">Señales simples basadas en tus datos.</p>
           <div id="insights-content" aria-live="polite">Cargando...</div>
