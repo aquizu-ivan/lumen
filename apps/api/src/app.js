@@ -262,6 +262,113 @@ app.get("/metrics/timeseries", (req, res) => {
   });
 });
 
+app.get("/metrics/heatmap", (req, res) => {
+  const { from, to, serviceId } = req.query;
+  const fromParam = typeof from === "string" ? from : undefined;
+  const toParam = typeof to === "string" ? to : undefined;
+  const serviceIdParam = typeof serviceId === "string" ? serviceId : undefined;
+
+  if (fromParam && !dateRegex.test(fromParam)) {
+    res
+      .status(400)
+      .json(errorResponse("BAD_REQUEST", "Parámetros inválidos", { field: "from" }));
+    return;
+  }
+
+  if (toParam && !dateRegex.test(toParam)) {
+    res
+      .status(400)
+      .json(errorResponse("BAD_REQUEST", "Parámetros inválidos", { field: "to" }));
+    return;
+  }
+
+  if (serviceIdParam !== undefined) {
+    const exists = demoData.services.some((service) => service.id === serviceIdParam);
+    if (!exists) {
+      res
+        .status(400)
+        .json(
+          errorResponse("BAD_REQUEST", "Parámetros inválidos", {
+            field: "serviceId"
+          })
+        );
+      return;
+    }
+  }
+
+  const fallbackDays =
+    demoData.defaults && typeof demoData.defaults.recommendedRangeDays === "number"
+      ? demoData.defaults.recommendedRangeDays
+      : 7;
+  const fallbackTo = demoData.rangeTo;
+  const fallbackFrom = shiftDate(fallbackTo, -(fallbackDays - 1));
+  const requestedFrom = fromParam ?? fallbackFrom;
+  const requestedTo = toParam ?? fallbackTo;
+
+  const days = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
+  const hours = [];
+  for (let hour = 8; hour <= 20; hour += 1) {
+    hours.push(hour);
+  }
+  const emptyValues = days.map(() => hours.map(() => 0));
+
+  if (requestedTo < demoData.rangeFrom || requestedFrom > demoData.rangeTo) {
+    res.status(200).json({
+      ok: true,
+      heatmap: {
+        days,
+        hours,
+        values: emptyValues,
+        max: 0,
+        from: requestedFrom,
+        to: requestedTo,
+        serviceId: serviceIdParam ?? null
+      }
+    });
+    return;
+  }
+
+  const effectiveFrom =
+    requestedFrom < demoData.rangeFrom ? demoData.rangeFrom : requestedFrom;
+  const effectiveTo = requestedTo > demoData.rangeTo ? demoData.rangeTo : requestedTo;
+  const values = days.map(() => hours.map(() => 0));
+  let max = 0;
+
+  for (const booking of demoData.bookings) {
+    const date = booking.startAt.slice(0, 10);
+    if (date < effectiveFrom || date > effectiveTo) {
+      continue;
+    }
+    if (serviceIdParam !== undefined && booking.serviceId !== serviceIdParam) {
+      continue;
+    }
+    const dateTime = new Date(booking.startAt);
+    const hour = dateTime.getUTCHours();
+    if (hour < 8 || hour > 20) {
+      continue;
+    }
+    const dayIndex = (dateTime.getUTCDay() + 6) % 7;
+    const hourIndex = hour - 8;
+    values[dayIndex][hourIndex] += 1;
+    if (values[dayIndex][hourIndex] > max) {
+      max = values[dayIndex][hourIndex];
+    }
+  }
+
+  res.status(200).json({
+    ok: true,
+    heatmap: {
+      days,
+      hours,
+      values,
+      max,
+      from: effectiveFrom,
+      to: effectiveTo,
+      serviceId: serviceIdParam ?? null
+    }
+  });
+});
+
 app.use((req, res) => {
   res.status(404).json(errorResponse("NOT_FOUND", "Ruta no encontrada"));
 });

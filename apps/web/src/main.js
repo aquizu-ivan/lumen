@@ -30,6 +30,8 @@ const overviewAnnounceEl = document.getElementById("overview-announce");
 const overviewUpdatedEl = document.getElementById("overview-updated");
 const trendEl = document.getElementById("trend-content");
 const trendAnnounceEl = document.getElementById("trend-announce");
+const heatmapEl = document.getElementById("heatmap-content");
+const heatmapAnnounceEl = document.getElementById("heatmap-announce");
 
 const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const baseUrl = import.meta.env.DEV ? envBaseUrl || "http://localhost:4000" : envBaseUrl;
@@ -41,6 +43,7 @@ let filterNoteTimeout = null;
 let lastStatusAnnouncement = "";
 let lastOverviewAnnouncement = "";
 let lastTrendAnnouncement = "";
+let lastHeatmapAnnouncement = "";
 let demoMode = false;
 let metaRangeFrom = "";
 let metaRangeTo = "";
@@ -55,6 +58,9 @@ const OVERVIEW_TTL_MS = 30000;
 const timeseriesCache = new Map();
 const timeseriesInflight = new Map();
 const TIMESERIES_TTL_MS = 30000;
+const heatmapCache = new Map();
+const heatmapInflight = new Map();
+const HEATMAP_TTL_MS = 30000;
 
 function setText(el, text) {
   el.textContent = text;
@@ -120,6 +126,14 @@ function announceTrend(message) {
   }
   trendAnnounceEl.textContent = message;
   lastTrendAnnouncement = message;
+}
+
+function announceHeatmap(message) {
+  if (!heatmapAnnounceEl || !message || message === lastHeatmapAnnouncement) {
+    return;
+  }
+  heatmapAnnounceEl.textContent = message;
+  lastHeatmapAnnouncement = message;
 }
 
 function describeError(info) {
@@ -191,6 +205,10 @@ function buildTimeseriesKey() {
   return buildOverviewKey();
 }
 
+function buildHeatmapKey() {
+  return buildOverviewKey();
+}
+
 function fetchOverviewWithCache() {
   const key = buildOverviewKey();
   const now = Date.now();
@@ -252,6 +270,38 @@ function fetchTimeseriesWithCache() {
       return Promise.reject(err);
     });
   timeseriesInflight.set(key, promise);
+  return promise;
+}
+
+function fetchHeatmapWithCache() {
+  const key = buildHeatmapKey();
+  const now = Date.now();
+  const cached = heatmapCache.get(key);
+  if (cached && now < cached.expiresAtMs) {
+    return Promise.resolve({ data: cached.data, source: "cache" });
+  }
+  if (heatmapInflight.has(key)) {
+    return heatmapInflight.get(key);
+  }
+  const promise = fetchJson(buildHeatmapUrl())
+    .then((result) => {
+      heatmapInflight.delete(key);
+      if (result.ok) {
+        const fetchedAtMs = Date.now();
+        heatmapCache.set(key, {
+          data: result.data,
+          fetchedAtMs,
+          expiresAtMs: fetchedAtMs + HEATMAP_TTL_MS
+        });
+        return { data: result.data, source: "network" };
+      }
+      return Promise.reject(result);
+    })
+    .catch((err) => {
+      heatmapInflight.delete(key);
+      return Promise.reject(err);
+    });
+  heatmapInflight.set(key, promise);
   return promise;
 }
 
@@ -431,6 +481,21 @@ function showTrendMessage(message, tone) {
   announceTrend(message);
 }
 
+function showHeatmapMessage(message, tone) {
+  clearEl(heatmapEl);
+  const msg = document.createElement("div");
+  msg.className = "state-message";
+  if (tone) {
+    msg.classList.add(tone);
+  }
+  msg.textContent = message;
+  heatmapEl.appendChild(msg);
+  requestAnimationFrame(() => {
+    msg.classList.add("is-visible");
+  });
+  announceHeatmap(message);
+}
+
 async function fetchJson(url) {
   try {
     const response = await fetch(url);
@@ -580,6 +645,99 @@ function renderTimeseries(data) {
   trendEl.appendChild(wrapper);
 }
 
+function renderHeatmap(data) {
+  clearEl(heatmapEl);
+  const safeData = data && typeof data === "object" ? data : {};
+  const heatmap =
+    safeData.heatmap && typeof safeData.heatmap === "object" ? safeData.heatmap : null;
+  const days = heatmap && Array.isArray(heatmap.days) ? heatmap.days : [];
+  const hours = heatmap && Array.isArray(heatmap.hours) ? heatmap.hours : [];
+  const values = heatmap && Array.isArray(heatmap.values) ? heatmap.values : [];
+  const max = heatmap && typeof heatmap.max === "number" ? heatmap.max : 0;
+  if (days.length === 0 || hours.length === 0 || values.length === 0) {
+    showHeatmapMessage("Sin datos para este rango/servicio.", "is-empty");
+    return;
+  }
+  if (max === 0) {
+    showHeatmapMessage("Sin datos para este rango/servicio.", "is-empty");
+    return;
+  }
+  const cellSize = 16;
+  const gap = 4;
+  const leftLabel = 36;
+  const topLabel = 18;
+  const gridWidth = hours.length * cellSize + (hours.length - 1) * gap;
+  const gridHeight = days.length * cellSize + (days.length - 1) * gap;
+  const width = leftLabel + gridWidth + 8;
+  const height = topLabel + gridHeight + 8;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "Heatmap de turnos por dia y hora");
+  svg.classList.add("heatmap-svg");
+
+  hours.forEach((hour, index) => {
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.textContent = String(hour);
+    label.setAttribute(
+      "x",
+      leftLabel + index * (cellSize + gap) + cellSize / 2
+    );
+    label.setAttribute("y", "12");
+    label.setAttribute("text-anchor", "middle");
+    label.classList.add("heatmap-label");
+    svg.appendChild(label);
+  });
+
+  days.forEach((day, index) => {
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.textContent = day;
+    label.setAttribute("x", String(leftLabel - 6));
+    label.setAttribute(
+      "y",
+      topLabel + index * (cellSize + gap) + cellSize / 2 + 4
+    );
+    label.setAttribute("text-anchor", "end");
+    label.classList.add("heatmap-label");
+    svg.appendChild(label);
+  });
+
+  for (let dayIndex = 0; dayIndex < days.length; dayIndex += 1) {
+    const row = Array.isArray(values[dayIndex]) ? values[dayIndex] : [];
+    for (let hourIndex = 0; hourIndex < hours.length; hourIndex += 1) {
+      const raw = row[hourIndex];
+      const count = typeof raw === "number" ? raw : 0;
+      const ratio = max === 0 ? 0 : count / max;
+      const alpha = Math.min(0.82, 0.08 + ratio * 0.74);
+      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      rect.setAttribute(
+        "x",
+        String(leftLabel + hourIndex * (cellSize + gap))
+      );
+      rect.setAttribute(
+        "y",
+        String(topLabel + dayIndex * (cellSize + gap))
+      );
+      rect.setAttribute("width", String(cellSize));
+      rect.setAttribute("height", String(cellSize));
+      rect.setAttribute("rx", "3");
+      rect.setAttribute("fill", `rgba(76, 212, 198, ${alpha})`);
+      rect.classList.add("heatmap-cell");
+      svg.appendChild(rect);
+    }
+  }
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "heatmap-wrapper";
+  wrapper.appendChild(svg);
+
+  const legend = document.createElement("div");
+  legend.className = "heatmap-legend";
+  legend.textContent = `Bajo - Alto | max: ${max}`;
+  wrapper.appendChild(legend);
+  heatmapEl.appendChild(wrapper);
+}
+
 function setMetaLine(data) {
   if (!metaServiceEl || !metaEnvEl || !metaStartedEl || !metaUptimeEl) {
     return;
@@ -696,11 +854,13 @@ function applyFilters(values) {
   if (normalized.values.from || normalized.values.to || normalized.values.serviceId) {
     loadOverview();
     loadTimeseries();
+    loadHeatmap();
   } else {
     showOverviewMessage("Selecciona un rango o usa un preset para ver metricas.", "is-initial");
     setText(contractOverviewEl, "Esperando filtros...");
     setUpdatedLine(null);
     showTrendMessage("Selecciona un rango o usa un preset para ver tendencia.", "is-initial");
+    showHeatmapMessage("Selecciona un rango o usa un preset para ver heatmap.", "is-initial");
   }
 }
 
@@ -784,6 +944,21 @@ function buildTimeseriesUrl() {
   return `${baseUrl}/metrics/timeseries${query ? `?${query}` : ""}`;
 }
 
+function buildHeatmapUrl() {
+  const params = new URLSearchParams();
+  if (filterFromEl && filterFromEl.value) {
+    params.set("from", filterFromEl.value);
+  }
+  if (filterToEl && filterToEl.value) {
+    params.set("to", filterToEl.value);
+  }
+  if (filterServiceEl && filterServiceEl.value) {
+    params.set("serviceId", filterServiceEl.value);
+  }
+  const query = params.toString();
+  return `${baseUrl}/metrics/heatmap${query ? `?${query}` : ""}`;
+}
+
 async function loadOverview() {
   const key = buildOverviewKey();
   const now = Date.now();
@@ -834,6 +1009,28 @@ async function loadTimeseries() {
   }
 }
 
+async function loadHeatmap() {
+  const key = buildHeatmapKey();
+  const now = Date.now();
+  const cached = heatmapCache.get(key);
+  if (cached && now < cached.expiresAtMs) {
+    renderHeatmap(cached.data);
+    return;
+  }
+  showHeatmapMessage("Cargando heatmap...", "is-loading");
+  try {
+    const result = await fetchHeatmapWithCache();
+    const heatmap = result.data && typeof result.data.heatmap === "object" ? result.data.heatmap : null;
+    if (heatmap && typeof heatmap.max === "number" && heatmap.max === 0) {
+      showHeatmapMessage("Sin datos para este rango/servicio.", "is-empty");
+      return;
+    }
+    renderHeatmap(result.data);
+  } catch (error) {
+    showHeatmapMessage(describeError(error), "is-error");
+  }
+}
+
 async function init() {
   const demoFromUrl = readDemoFromUrl();
   setDemoMode(demoFromUrl);
@@ -854,10 +1051,12 @@ async function init() {
   if (initialFilters.values.from || initialFilters.values.to || initialFilters.values.serviceId) {
     showOverviewMessage("Cargando metricas...", "is-loading");
     showTrendMessage("Cargando tendencia...", "is-loading");
+    showHeatmapMessage("Cargando heatmap...", "is-loading");
   } else {
     showOverviewMessage("Selecciona un rango o usa un preset para ver metricas.", "is-initial");
     setText(contractOverviewEl, "Esperando filtros...");
     showTrendMessage("Selecciona un rango o usa un preset para ver tendencia.", "is-initial");
+    showHeatmapMessage("Selecciona un rango o usa un preset para ver heatmap.", "is-initial");
   }
   setText(contractHealthEl, "Consultando /health...");
 
@@ -865,6 +1064,7 @@ async function init() {
     renderStatusError(null, "VITE_API_BASE_URL requerida en produccion");
     setText(overviewEl, "Error: VITE_API_BASE_URL requerida en produccion");
     setText(trendEl, "Error: VITE_API_BASE_URL requerida en produccion");
+    setText(heatmapEl, "Error: VITE_API_BASE_URL requerida en produccion");
     setText(contractHealthEl, "ERROR baseUrl");
     setText(contractOverviewEl, "ERROR baseUrl");
     return;
@@ -896,7 +1096,7 @@ async function init() {
   }
 
   if (initialFilters.values.from || initialFilters.values.to || initialFilters.values.serviceId) {
-    await Promise.all([loadOverview(), loadTimeseries()]);
+    await Promise.all([loadOverview(), loadTimeseries(), loadHeatmap()]);
   }
 }
 

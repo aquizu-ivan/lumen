@@ -130,3 +130,11 @@
 - Presets 7d/30d siempre quedan dentro de meta.from/to y muestran datos.
 - Si el dataset es mas corto que el preset, usar rango completo.
 - Fallback: si /meta falla, presets y demo siguen funcionando sin crash.
+
+## Ticket-17 - Heatmap
+- curl https://lumen-lumen-api.up.railway.app/metrics/heatmap
+- curl https://lumen-lumen-api.up.railway.app/metrics/heatmap?from=2025-03-01&to=2025-03-15&serviceId=svc-2
+- Web: abrir https://aquizu-ivan.github.io/lumen/?demo=1 y ver panel Horas pico con datos.
+- Preset 30d cambia densidad del heatmap.
+- Cambiar serviceId y confirmar que el heatmap cambia.
+- Rango extremo sin datos => max=0 y mensaje "Sin datos para este rango/servicio."
