@@ -42,8 +42,12 @@ let lastStatusAnnouncement = "";
 let lastOverviewAnnouncement = "";
 let lastTrendAnnouncement = "";
 let demoMode = false;
-let datasetRange = null;
+let metaRangeFrom = "";
+let metaRangeTo = "";
 let recommendedRangeDays = 7;
+let metaLoading = true;
+let metaFailed = false;
+let pendingMetaNote = false;
 const feedbackTimeouts = new Map();
 const overviewCache = new Map();
 const overviewInflight = new Map();
@@ -256,6 +260,12 @@ function formatDate(value) {
   const month = String(value.getMonth() + 1).padStart(2, "0");
   const day = String(value.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function shiftDateString(value, days) {
+  const base = new Date(`${value}T00:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + days);
+  return base.toISOString().slice(0, 10);
 }
 
 function normalizeDate(value) {
@@ -611,7 +621,8 @@ function populateServices(metaData) {
   const services = meta && Array.isArray(meta.services) ? meta.services : [];
   const dataset = meta && meta.dataset && typeof meta.dataset === "object" ? meta.dataset : null;
   if (dataset && typeof dataset.from === "string" && typeof dataset.to === "string") {
-    datasetRange = { from: dataset.from, to: dataset.to };
+    metaRangeFrom = dataset.from;
+    metaRangeTo = dataset.to;
   }
   const defaults = meta && meta.defaults && typeof meta.defaults === "object" ? meta.defaults : null;
   if (defaults && typeof defaults.recommendedRangeDays === "number") {
@@ -675,6 +686,10 @@ function applyFilters(values) {
   writeFiltersToUrl(normalized.values);
   if (normalized.corrected) {
     showFilterNote("Rango corregido automaticamente");
+    pendingMetaNote = false;
+  } else if (pendingMetaNote) {
+    showFilterNote("Preparando dataset...");
+    pendingMetaNote = false;
   } else {
     clearFilterNote();
   }
@@ -689,34 +704,52 @@ function applyFilters(values) {
   }
 }
 
-function getAnchorDate() {
-  if (datasetRange && dateRegex.test(datasetRange.to)) {
-    return new Date(`${datasetRange.to}T00:00:00`);
+function getDatasetRange() {
+  if (dateRegex.test(metaRangeFrom) && dateRegex.test(metaRangeTo)) {
+    return { from: metaRangeFrom, to: metaRangeTo };
   }
-  return new Date();
+  return null;
+}
+
+function computePresetRange(days) {
+  const datasetRange = getDatasetRange();
+  if (!datasetRange) {
+    const today = new Date();
+    const fromDate = new Date(today);
+    fromDate.setDate(today.getDate() - days);
+    return { from: formatDate(fromDate), to: formatDate(today), usedDataset: false };
+  }
+  const to = datasetRange.to;
+  const from = days > 1 ? shiftDateString(to, -(days - 1)) : to;
+  if (from < datasetRange.from) {
+    return { from: datasetRange.from, to: datasetRange.to, usedDataset: true };
+  }
+  return { from, to, usedDataset: true };
 }
 
 function applyPreset(days) {
-  const today = getAnchorDate();
-  const fromDate = new Date(today);
-  fromDate.setDate(today.getDate() - days);
+  const range = computePresetRange(days);
+  if (!range.usedDataset && metaLoading && !metaFailed) {
+    pendingMetaNote = true;
+  }
   const current = readFiltersFromInputs();
   applyFilters({
-    from: formatDate(fromDate),
-    to: formatDate(today),
+    from: range.from,
+    to: range.to,
     serviceId: current.serviceId
   });
 }
 
 function applyDemoFilters() {
-  const today = getAnchorDate();
-  const fromDate = new Date(today);
-  fromDate.setDate(today.getDate() - 7);
+  const range = computePresetRange(7);
+  if (!range.usedDataset && metaLoading && !metaFailed) {
+    pendingMetaNote = true;
+  }
   const current = readFiltersFromInputs();
   const serviceId = current.serviceId || getFirstServiceId();
   applyFilters({
-    from: formatDate(fromDate),
-    to: formatDate(today),
+    from: range.from,
+    to: range.to,
     serviceId
   });
 }
@@ -849,7 +882,10 @@ async function init() {
   const metaResult = await fetchJson(`${baseUrl}/meta`);
   if (metaResult.ok) {
     populateServices(metaResult.data);
+    metaLoading = false;
   } else {
+    metaLoading = false;
+    metaFailed = true;
     applyServiceSelection(pendingServiceId);
     pendingServiceId = "";
   }
