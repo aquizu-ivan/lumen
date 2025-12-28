@@ -138,3 +138,13 @@
 - Preset 30d cambia densidad del heatmap.
 - Cambiar serviceId y confirmar que el heatmap cambia.
 - Rango extremo sin datos => max=0 y mensaje "Sin datos para este rango/servicio."
+
+## Ticket-18 - Script 30s
+1) Abrir https://aquizu-ivan.github.io/lumen/?demo=1
+2) Confirmar:
+   - Resumen arriba con KPIs legibles y formato humano.
+   - Insights visibles si hay datos.
+   - Tendencia y Heatmap visibles sin scrollear demasiado.
+   - Tecnica colapsada por defecto.
+3) Cambiar serviceId + preset 30d:
+   - KPIs cambian, insights cambian, charts cambian.

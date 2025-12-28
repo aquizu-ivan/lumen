@@ -32,6 +32,9 @@ const trendEl = document.getElementById("trend-content");
 const trendAnnounceEl = document.getElementById("trend-announce");
 const heatmapEl = document.getElementById("heatmap-content");
 const heatmapAnnounceEl = document.getElementById("heatmap-announce");
+const insightsEl = document.getElementById("insights-content");
+const systemPillEl = document.getElementById("system-pill");
+const technicalSectionEl = document.getElementById("technical-section");
 
 const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const baseUrl = import.meta.env.DEV ? envBaseUrl || "http://localhost:4000" : envBaseUrl;
@@ -51,6 +54,9 @@ let recommendedRangeDays = 7;
 let metaLoading = true;
 let metaFailed = false;
 let pendingMetaNote = false;
+let latestOverview = null;
+let latestTimeseries = null;
+let latestHeatmap = null;
 const feedbackTimeouts = new Map();
 const overviewCache = new Map();
 const overviewInflight = new Map();
@@ -96,6 +102,9 @@ function setDemoMode(enabled) {
   if (demoPillEl) {
     demoPillEl.classList.toggle("is-visible", enabled);
   }
+  if (technicalSectionEl) {
+    technicalSectionEl.open = enabled;
+  }
   if (contractHealthSectionEl) {
     contractHealthSectionEl.open = enabled;
   }
@@ -134,6 +143,20 @@ function announceHeatmap(message) {
   }
   heatmapAnnounceEl.textContent = message;
   lastHeatmapAnnouncement = message;
+}
+
+function setSystemPill(statusKey) {
+  if (!systemPillEl || typeof statusKey !== "string") {
+    return;
+  }
+  const map = {
+    OK: "Sistema OK",
+    DEGRADED: "Sistema DEGRADADO",
+    ERROR: "Sistema ERROR"
+  };
+  const label = map[statusKey] || "Sistema";
+  systemPillEl.textContent = label;
+  systemPillEl.className = `status-pill system-pill status-${statusKey.toLowerCase()}`;
 }
 
 function describeError(info) {
@@ -496,6 +519,23 @@ function showHeatmapMessage(message, tone) {
   announceHeatmap(message);
 }
 
+function showInsightsMessage(message, tone) {
+  if (!insightsEl) {
+    return;
+  }
+  clearEl(insightsEl);
+  const msg = document.createElement("div");
+  msg.className = "state-message";
+  if (tone) {
+    msg.classList.add(tone);
+  }
+  msg.textContent = message;
+  insightsEl.appendChild(msg);
+  requestAnimationFrame(() => {
+    msg.classList.add("is-visible");
+  });
+}
+
 async function fetchJson(url) {
   try {
     const response = await fetch(url);
@@ -521,6 +561,7 @@ function renderHealth(data) {
     typeof build === "object" &&
     ["gitSha", "deployId", "serviceId", "serviceInstanceId", "region"].every((key) => key in build);
   const statusText = data && data.ok === true && hasBase && hasBuild ? "OK" : "DEGRADED";
+  setSystemPill(statusText);
   const statusLine = document.createElement("div");
   statusLine.className = `status-pill status-${statusText.toLowerCase()}`;
   statusLine.textContent = `Status: ${statusText}`;
@@ -535,14 +576,226 @@ function renderHealth(data) {
   statusEl.appendChild(line);
 }
 
-function renderOverview(data) {
+function formatNumber(value) {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  return Math.round(value).toLocaleString("es-AR");
+}
+
+function formatPercent(value) {
+  if (!Number.isFinite(value)) {
+    return "0.0%";
+  }
+  return `${(Math.round(value * 1000) / 10).toFixed(1)}%`;
+}
+
+function countDaysInclusive(from, to) {
+  if (!dateRegex.test(from) || !dateRegex.test(to)) {
+    return 0;
+  }
+  const start = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+  const diff = Math.floor((end - start) / 86400000);
+  return diff >= 0 ? diff + 1 : 0;
+}
+
+function buildKpi(label, value, sub) {
+  const card = document.createElement("div");
+  card.className = "kpi-card";
+  const labelEl = document.createElement("div");
+  labelEl.className = "kpi-label";
+  labelEl.textContent = label;
+  const valueEl = document.createElement("div");
+  valueEl.className = "kpi-value";
+  valueEl.textContent = value;
+  card.appendChild(labelEl);
+  card.appendChild(valueEl);
+  if (sub) {
+    const subEl = document.createElement("div");
+    subEl.className = "kpi-sub";
+    subEl.textContent = sub;
+    card.appendChild(subEl);
+  }
+  return card;
+}
+
+function getHeatmapPeak(heatmap) {
+  if (!heatmap || !Array.isArray(heatmap.values)) {
+    return null;
+  }
+  const days = Array.isArray(heatmap.days) ? heatmap.days : [];
+  const hours = Array.isArray(heatmap.hours) ? heatmap.hours : [];
+  let best = null;
+  for (let dayIndex = 0; dayIndex < heatmap.values.length; dayIndex += 1) {
+    const row = Array.isArray(heatmap.values[dayIndex]) ? heatmap.values[dayIndex] : [];
+    for (let hourIndex = 0; hourIndex < row.length; hourIndex += 1) {
+      const count = typeof row[hourIndex] === "number" ? row[hourIndex] : 0;
+      if (!best || count > best.count) {
+        best = {
+          day: days[dayIndex] || "n/a",
+          hour: hours[hourIndex] ?? null,
+          count
+        };
+      }
+    }
+  }
+  if (!best || best.count === 0 || best.hour === null) {
+    return null;
+  }
+  return best;
+}
+
+function getHeatmapBestDay(heatmap) {
+  if (!heatmap || !Array.isArray(heatmap.values)) {
+    return null;
+  }
+  const days = Array.isArray(heatmap.days) ? heatmap.days : [];
+  let best = null;
+  for (let dayIndex = 0; dayIndex < heatmap.values.length; dayIndex += 1) {
+    const row = Array.isArray(heatmap.values[dayIndex]) ? heatmap.values[dayIndex] : [];
+    const total = row.reduce((acc, value) => acc + (typeof value === "number" ? value : 0), 0);
+    if (!best || total > best.total) {
+      best = { day: days[dayIndex] || "n/a", total };
+    }
+  }
+  if (!best || best.total === 0) {
+    return null;
+  }
+  return best;
+}
+
+function renderInsights() {
+  if (!insightsEl || !latestOverview) {
+    return;
+  }
+  const insights = [];
+  const noShowRate =
+    latestOverview && typeof latestOverview.noShowRate === "number"
+      ? latestOverview.noShowRate
+      : 0;
+  const heatmap = latestHeatmap && latestHeatmap.heatmap ? latestHeatmap.heatmap : null;
+  const peak = getHeatmapPeak(heatmap);
+  if (peak) {
+    const hour = String(peak.hour).padStart(2, "0");
+    insights.push(`Pico principal: ${peak.day} ${hour}:00 (${peak.count} turnos)`);
+  }
+  const bestDay = getHeatmapBestDay(heatmap);
+  if (bestDay) {
+    insights.push(`Dia mas fuerte: ${bestDay.day}`);
+  }
+  if (latestTimeseries && Array.isArray(latestTimeseries.series)) {
+    const series = latestTimeseries.series;
+    if (series.length >= 14) {
+      const last7 = series.slice(-7);
+      const prev7 = series.slice(-14, -7);
+      const sumLast = last7.reduce(
+        (acc, item) => acc + (typeof item.total === "number" ? item.total : 0),
+        0
+      );
+      const sumPrev = prev7.reduce(
+        (acc, item) => acc + (typeof item.total === "number" ? item.total : 0),
+        0
+      );
+      if (sumPrev === 0 && sumLast > 0) {
+        insights.push("Tendencia al alza en los ultimos 7 dias.");
+      } else if (sumPrev > 0) {
+        const ratio = (sumLast - sumPrev) / sumPrev;
+        if (ratio > 0.08) {
+          insights.push("Tendencia al alza en los ultimos 7 dias.");
+        } else if (ratio < -0.08) {
+          insights.push("Tendencia a la baja en los ultimos 7 dias.");
+        } else {
+          insights.push("Tendencia estable en los ultimos 7 dias.");
+        }
+      }
+    }
+  }
+  if (noShowRate > 0.1) {
+    insights.push(`No-shows altos: ${formatPercent(noShowRate)}`);
+  }
+  if (heatmap && Array.isArray(heatmap.values)) {
+    const total = heatmap.values.reduce(
+      (acc, row) =>
+        acc +
+        (Array.isArray(row)
+          ? row.reduce((rowAcc, value) => rowAcc + (typeof value === "number" ? value : 0), 0)
+          : 0),
+      0
+    );
+    const cells = heatmap.values.reduce(
+      (acc, row) => acc + (Array.isArray(row) ? row.length : 0),
+      0
+    );
+    const average = cells > 0 ? total / cells : 0;
+    if (average > 0 && heatmap.max >= average * 2.5) {
+      insights.push("Demanda concentrada en pocas horas.");
+    }
+  }
+  clearEl(insightsEl);
+  if (insights.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "state-message is-visible";
+    empty.textContent = "Sin insights disponibles para este rango.";
+    insightsEl.appendChild(empty);
+    return;
+  }
+  const list = document.createElement("ul");
+  list.className = "insights-list";
+  insights.slice(0, 5).forEach((item) => {
+    const li = document.createElement("li");
+    li.textContent = item;
+    list.appendChild(li);
+  });
+  insightsEl.appendChild(list);
+}
+
+function renderSummary() {
+  if (!latestOverview) {
+    return;
+  }
   clearEl(overviewEl);
-  const safeData = data && typeof data === "object" ? data : {};
-  const total = typeof safeData.total === "number" ? safeData.total : 0;
-  const noShowRate = typeof safeData.noShowRate === "number" ? safeData.noShowRate : 0;
-  const summary = document.createElement("div");
-  summary.textContent = `total: ${total} | noShowRate: ${noShowRate}`;
-  overviewEl.appendChild(summary);
+  const total = typeof latestOverview.total === "number" ? latestOverview.total : 0;
+  const noShow = typeof latestOverview.noShow === "number" ? latestOverview.noShow : 0;
+  const noShowRate =
+    typeof latestOverview.noShowRate === "number" ? latestOverview.noShowRate : 0;
+  const range = latestOverview.range || {};
+  const timeseries =
+    latestTimeseries && Array.isArray(latestTimeseries.series) ? latestTimeseries.series : null;
+  const dayCount = timeseries ? timeseries.length : countDaysInclusive(range.from || "", range.to || "");
+  const avgPerDay = dayCount > 0 ? total / dayCount : 0;
+  const cancelled = timeseries
+    ? timeseries.reduce(
+        (acc, item) => acc + (typeof item.cancelled === "number" ? item.cancelled : 0),
+        0
+      )
+    : null;
+  const heatmap = latestHeatmap && latestHeatmap.heatmap ? latestHeatmap.heatmap : null;
+  const peak = getHeatmapPeak(heatmap);
+  const bestDay = getHeatmapBestDay(heatmap);
+
+  const grid = document.createElement("div");
+  grid.className = "kpi-grid";
+  grid.appendChild(buildKpi("Turnos", formatNumber(total), null));
+  grid.appendChild(
+    buildKpi(
+      "No-shows",
+      formatPercent(noShowRate),
+      total > 0 ? `${formatNumber(noShow)} de ${formatNumber(total)}` : null
+    )
+  );
+  grid.appendChild(buildKpi("Promedio diario", avgPerDay.toFixed(1), null));
+  if (cancelled !== null) {
+    grid.appendChild(buildKpi("Cancelaciones", formatNumber(cancelled), null));
+  }
+  if (peak) {
+    const hour = String(peak.hour).padStart(2, "0");
+    grid.appendChild(buildKpi("Pico principal", `${peak.day} ${hour}:00`, null));
+  }
+  if (bestDay) {
+    grid.appendChild(buildKpi("Mejor dia", bestDay.day, null));
+  }
+  overviewEl.appendChild(grid);
   if (total === 0) {
     const empty = document.createElement("div");
     empty.className = "empty";
@@ -550,20 +803,12 @@ function renderOverview(data) {
     overviewEl.appendChild(empty);
     announceOverview("Sin datos para este rango/servicio. Proba presets 7d o 30d.");
   }
-  const list = document.createElement("ul");
-  const byService = Array.isArray(safeData.byService) ? safeData.byService : [];
-  byService.forEach((item) => {
-    if (!item || typeof item !== "object") {
-      return;
-    }
-    const li = document.createElement("li");
-    const serviceId = typeof item.serviceId === "string" ? item.serviceId : "n/a";
-    const count = typeof item.count === "number" ? item.count : 0;
-    const noShow = typeof item.noShow === "number" ? item.noShow : 0;
-    li.textContent = `${serviceId}: ${count} (no-show: ${noShow})`;
-    list.appendChild(li);
-  });
-  overviewEl.appendChild(list);
+}
+
+function renderOverview(data) {
+  latestOverview = data && typeof data === "object" ? data : null;
+  renderSummary();
+  renderInsights();
 }
 
 function renderTimeseries(data) {
@@ -755,6 +1000,7 @@ function setMetaLine(data) {
 
 function renderStatusError(info, message) {
   clearEl(statusEl);
+  setSystemPill("ERROR");
   const statusLine = document.createElement("div");
   statusLine.className = "status-pill status-error";
   statusLine.textContent = "Status: ERROR";
@@ -852,15 +1098,20 @@ function applyFilters(values) {
     clearFilterNote();
   }
   if (normalized.values.from || normalized.values.to || normalized.values.serviceId) {
+    latestOverview = null;
+    latestTimeseries = null;
+    latestHeatmap = null;
+    showInsightsMessage("Cargando insights...", "is-loading");
     loadOverview();
     loadTimeseries();
     loadHeatmap();
   } else {
-    showOverviewMessage("Selecciona un rango o usa un preset para ver metricas.", "is-initial");
+    showOverviewMessage("Selecciona un rango o usa un preset para ver el resumen.", "is-initial");
     setText(contractOverviewEl, "Esperando filtros...");
     setUpdatedLine(null);
     showTrendMessage("Selecciona un rango o usa un preset para ver tendencia.", "is-initial");
     showHeatmapMessage("Selecciona un rango o usa un preset para ver heatmap.", "is-initial");
+    showInsightsMessage("Selecciona un rango o usa un preset para ver insights.", "is-initial");
   }
 }
 
@@ -969,7 +1220,7 @@ async function loadOverview() {
     setUpdatedLine(cached.fetchedAtMs);
     return;
   }
-  showOverviewMessage("Cargando metricas...", "is-loading");
+  showOverviewMessage("Cargando resumen...", "is-loading");
   setText(contractOverviewEl, "Consultando /metrics/overview...");
   try {
     const result = await fetchOverviewWithCache();
@@ -982,8 +1233,10 @@ async function loadOverview() {
       setUpdatedLine(Date.now());
     }
   } catch (error) {
+    latestOverview = null;
     showOverviewMessage(describeError(error), "is-error");
     setContractError(contractOverviewEl, error);
+    showInsightsMessage(describeError(error), "is-error");
   }
 }
 
@@ -992,20 +1245,31 @@ async function loadTimeseries() {
   const now = Date.now();
   const cached = timeseriesCache.get(key);
   if (cached && now < cached.expiresAtMs) {
+    latestTimeseries = cached.data;
     renderTimeseries(cached.data);
+    renderSummary();
+    renderInsights();
     return;
   }
   showTrendMessage("Cargando tendencia...", "is-loading");
   try {
     const result = await fetchTimeseriesWithCache();
+    latestTimeseries = result.data;
     const series = result.data && Array.isArray(result.data.series) ? result.data.series : [];
     if (series.length === 0) {
       showTrendMessage("Sin datos para este rango.", "is-empty");
+      renderSummary();
+      renderInsights();
       return;
     }
     renderTimeseries(result.data);
+    renderSummary();
+    renderInsights();
   } catch (error) {
+    latestTimeseries = null;
     showTrendMessage(describeError(error), "is-error");
+    renderSummary();
+    renderInsights();
   }
 }
 
@@ -1014,20 +1278,31 @@ async function loadHeatmap() {
   const now = Date.now();
   const cached = heatmapCache.get(key);
   if (cached && now < cached.expiresAtMs) {
+    latestHeatmap = cached.data;
     renderHeatmap(cached.data);
+    renderSummary();
+    renderInsights();
     return;
   }
   showHeatmapMessage("Cargando heatmap...", "is-loading");
   try {
     const result = await fetchHeatmapWithCache();
+    latestHeatmap = result.data;
     const heatmap = result.data && typeof result.data.heatmap === "object" ? result.data.heatmap : null;
     if (heatmap && typeof heatmap.max === "number" && heatmap.max === 0) {
       showHeatmapMessage("Sin datos para este rango/servicio.", "is-empty");
+      renderSummary();
+      renderInsights();
       return;
     }
     renderHeatmap(result.data);
+    renderSummary();
+    renderInsights();
   } catch (error) {
+    latestHeatmap = null;
     showHeatmapMessage(describeError(error), "is-error");
+    renderSummary();
+    renderInsights();
   }
 }
 
@@ -1049,14 +1324,16 @@ async function init() {
   setText(statusEl, "Consultando /health...");
   announceStatus("Consultando /health...");
   if (initialFilters.values.from || initialFilters.values.to || initialFilters.values.serviceId) {
-    showOverviewMessage("Cargando metricas...", "is-loading");
+    showOverviewMessage("Cargando resumen...", "is-loading");
     showTrendMessage("Cargando tendencia...", "is-loading");
     showHeatmapMessage("Cargando heatmap...", "is-loading");
+    showInsightsMessage("Cargando insights...", "is-loading");
   } else {
-    showOverviewMessage("Selecciona un rango o usa un preset para ver metricas.", "is-initial");
+    showOverviewMessage("Selecciona un rango o usa un preset para ver el resumen.", "is-initial");
     setText(contractOverviewEl, "Esperando filtros...");
     showTrendMessage("Selecciona un rango o usa un preset para ver tendencia.", "is-initial");
     showHeatmapMessage("Selecciona un rango o usa un preset para ver heatmap.", "is-initial");
+    showInsightsMessage("Selecciona un rango o usa un preset para ver insights.", "is-initial");
   }
   setText(contractHealthEl, "Consultando /health...");
 
@@ -1065,6 +1342,7 @@ async function init() {
     setText(overviewEl, "Error: VITE_API_BASE_URL requerida en produccion");
     setText(trendEl, "Error: VITE_API_BASE_URL requerida en produccion");
     setText(heatmapEl, "Error: VITE_API_BASE_URL requerida en produccion");
+    setText(insightsEl, "Error: VITE_API_BASE_URL requerida en produccion");
     setText(contractHealthEl, "ERROR baseUrl");
     setText(contractOverviewEl, "ERROR baseUrl");
     return;

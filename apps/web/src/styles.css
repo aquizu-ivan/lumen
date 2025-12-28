@@ -135,6 +135,23 @@ h1 {
   color: var(--muted);
 }
 
+.summary-panel {
+  border-color: rgba(76, 212, 198, 0.25);
+  box-shadow: 0 0 0 1px rgba(76, 212, 198, 0.08);
+}
+
+.summary-panel h2 {
+  font-size: 1.25rem;
+}
+
+.summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .status-pill {
   display: inline-flex;
   align-items: center;
@@ -145,6 +162,12 @@ h1 {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-bottom: 10px;
+}
+
+.system-pill {
+  margin-bottom: 0;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
 }
 
 .status-ok {
@@ -163,6 +186,49 @@ h1 {
   color: var(--error);
   border: 1px solid rgba(255, 107, 107, 0.35);
   background: rgba(255, 107, 107, 0.12);
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.kpi-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(15, 20, 27, 0.7);
+  border: 1px solid var(--panel-border);
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.kpi-value {
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.kpi-sub {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.insights-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text);
+}
+
+.insights-list li {
+  margin: 6px 0;
+  color: var(--text);
 }
 
 label {
@@ -280,6 +346,50 @@ summary:focus-visible {
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--panel-border);
+}
+
+.technical-section {
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  padding: 12px 14px;
+  background: rgba(12, 16, 21, 0.6);
+}
+
+.technical-section summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.technical-section summary::-webkit-details-marker {
+  display: none;
+}
+
+.technical-section summary::after {
+  content: "+";
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.technical-section[open] summary::after {
+  content: "-";
+}
+
+.technical-body {
+  margin-top: 12px;
+  display: grid;
+  gap: 16px;
+}
+
+.technical-block {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+  background: rgba(15, 20, 27, 0.7);
 }
 
 .contract-section summary {
@@ -504,6 +614,15 @@ ul {
 
   .panel h2 {
     font-size: 1.02rem;
+  }
+
+  .summary-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .kpi-value {
+    font-size: 1.3rem;
   }
 
   .actions {
