@@ -23,6 +23,7 @@
       <main class="grid">
         <section id="today" class="panel full today-panel">
           <h2>Hoy en tu operación</h2>
+          <p class="panel-kicker">Lo esencial para decidir hoy.</p>
           <div id="today-content">Cargando...</div>
         </section>
         <section id="summary" class="panel full summary-panel">
@@ -30,29 +31,36 @@
             <h2>Resumen</h2>
             <span id="system-pill" class="status-pill system-pill">Operación activa</span>
           </div>
+          <p class="panel-kicker">Volumen, pérdidas y ritmo del período.</p>
           <div id="overview-content">Cargando...</div>
           <div id="overview-updated" class="updated-line"></div>
           <div id="overview-announce" class="sr-only" aria-live="polite"></div>
         </section>
         <section id="insights" class="panel full">
           <h2>Lecturas clave</h2>
-          <p class="panel-kicker">Señales simples para decidir rápido.</p>
+          <p class="panel-kicker">Señales simples basadas en tus datos.</p>
           <div id="insights-content" aria-live="polite">Cargando...</div>
         </section>
         <section id="trend" class="panel full panel-visual">
           <h2>Evolución</h2>
-          <p class="panel-kicker">Turnos por día</p>
+          <p class="panel-kicker">Cómo se movieron los turnos día a día.</p>
           <div id="trend-content">Cargando...</div>
+          <div id="trend-callout" class="panel-callout"></div>
           <div id="trend-announce" class="sr-only" aria-live="polite"></div>
         </section>
         <section id="heatmap" class="panel full panel-visual">
           <h2>Cuándo te buscan</h2>
-          <p class="panel-kicker">Cuanto más intenso, más turnos</p>
+          <p class="panel-kicker">En qué horas se concentra la demanda.</p>
           <div id="heatmap-content">Cargando...</div>
+          <div id="heatmap-callout" class="panel-callout">
+            <span id="heatmap-callout-text"></span>
+            <span id="heatmap-callout-chip" class="callout-chip"></span>
+          </div>
           <div id="heatmap-announce" class="sr-only" aria-live="polite"></div>
         </section>
         <section id="filters" class="panel full panel-secondary">
           <h2>Filtros</h2>
+          <p class="panel-kicker">Ajustá el período y el servicio.</p>
           <div>
             <label for="filter-from">Desde</label>
             <input type="date" id="filter-from" />
