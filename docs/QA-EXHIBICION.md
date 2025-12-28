@@ -155,3 +155,10 @@
 - Copy humano (sin palabras técnicas visibles).
 - Resumen se entiende en 30s con demo=1.
 - Técnica colapsada por defecto.
+
+## Ticket-20 - Vista cliente final
+- Vista cliente (sin debug=1): todo en español, sin información técnica ni contrato visible.
+- Bloque "Hoy en tu operación" arriba con bullets humanos (o mensaje sin datos).
+- Resumen + Lecturas clave legibles en 30s; Evolución y Cuándo te buscan visibles.
+- Vista técnica (debug=1): aparece "Información técnica" colapsada y copiar JSON funciona.
+- URLs: https://aquizu-ivan.github.io/lumen/?demo=1 (cliente), https://aquizu-ivan.github.io/lumen/?demo=1&debug=1 (técnica visible).

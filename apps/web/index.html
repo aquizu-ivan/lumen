@@ -9,40 +9,45 @@
   <body>
     <div class="page">
       <header class="hero">
-        <p class="kicker">Observabilidad viva</p>
+        <p class="kicker">Lectura en vivo</p>
         <h1>LUMEN — Ops & Turnos</h1>
         <p class="subtitle">Una lectura clara de tu operación: ritmo, picos y señales.</p>
         <div class="demo-row">
           <label class="demo-toggle" for="demo-toggle">
             <input type="checkbox" id="demo-toggle" />
-            <span>Modo demo</span>
+            <span>Modo muestra</span>
           </label>
-          <span id="demo-pill" class="pill" aria-hidden="true">Demo</span>
+          <span id="demo-pill" class="pill" aria-hidden="true">Muestra</span>
         </div>
       </header>
       <main class="grid">
+        <section id="today" class="panel full today-panel">
+          <h2>Hoy en tu operación</h2>
+          <div id="today-content">Cargando...</div>
+        </section>
         <section id="summary" class="panel full summary-panel">
           <div class="summary-header">
             <h2>Resumen</h2>
-            <span id="system-pill" class="status-pill system-pill">Sistema</span>
+            <span id="system-pill" class="status-pill system-pill">Operación activa</span>
           </div>
           <div id="overview-content">Cargando...</div>
           <div id="overview-updated" class="updated-line"></div>
           <div id="overview-announce" class="sr-only" aria-live="polite"></div>
         </section>
         <section id="insights" class="panel full">
-          <h2>Insights</h2>
+          <h2>Lecturas clave</h2>
+          <p class="panel-kicker">Señales simples para decidir rápido.</p>
           <div id="insights-content" aria-live="polite">Cargando...</div>
         </section>
-        <section id="trend" class="panel full">
-          <h2>Tendencia</h2>
+        <section id="trend" class="panel full panel-visual">
+          <h2>Evolución</h2>
           <p class="panel-kicker">Turnos por día</p>
           <div id="trend-content">Cargando...</div>
           <div id="trend-announce" class="sr-only" aria-live="polite"></div>
         </section>
-        <section id="heatmap" class="panel full">
-          <h2>Horas pico</h2>
-          <p class="panel-kicker">Volumen por hora</p>
+        <section id="heatmap" class="panel full panel-visual">
+          <h2>Cuándo te buscan</h2>
+          <p class="panel-kicker">Cuanto más intenso, más turnos</p>
           <div id="heatmap-content">Cargando...</div>
           <div id="heatmap-announce" class="sr-only" aria-live="polite"></div>
         </section>
@@ -63,14 +68,14 @@
             </select>
           </div>
           <div class="filter-tools">
-            <div class="preset-group" aria-label="Presets de rango">
+            <div class="preset-group" aria-label="Atajos de rango">
               <button class="btn btn-chip" id="preset-24h" type="button">24h</button>
               <button class="btn btn-chip" id="preset-7d" type="button">7d</button>
               <button class="btn btn-chip" id="preset-30d" type="button">30d</button>
             </div>
             <div class="copy-group">
               <button id="copy-link" class="btn btn-ghost btn-small" type="button">
-                Copiar link
+                Copiar enlace
               </button>
               <span id="copy-feedback" class="copy-feedback" aria-live="polite"></span>
             </div>
@@ -83,17 +88,17 @@
         </section>
         <section id="technical" class="panel full">
           <details id="technical-section" class="technical-section">
-            <summary>Técnica</summary>
+            <summary>Información técnica</summary>
             <div class="technical-body">
               <div class="technical-block">
                 <h3>Estado del sistema</h3>
                 <div id="status-content">Consultando /health...</div>
                 <div id="status-announce" class="sr-only" aria-live="polite"></div>
                 <div class="meta-line">
-                  <span id="meta-service">service: n/a</span>
-                  <span id="meta-env">env: n/a</span>
-                  <span id="meta-started">startedAt: n/a</span>
-                  <span id="meta-uptime">uptime: n/a</span>
+                  <span id="meta-service">servicio: n/a</span>
+                  <span id="meta-env">entorno: n/a</span>
+                  <span id="meta-started">inicio: n/a</span>
+                  <span id="meta-uptime">tiempo activo: n/a</span>
                 </div>
               </div>
               <div class="technical-block">

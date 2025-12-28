@@ -33,7 +33,9 @@ const trendAnnounceEl = document.getElementById("trend-announce");
 const heatmapEl = document.getElementById("heatmap-content");
 const heatmapAnnounceEl = document.getElementById("heatmap-announce");
 const insightsEl = document.getElementById("insights-content");
+const todayEl = document.getElementById("today-content");
 const systemPillEl = document.getElementById("system-pill");
+const technicalPanelEl = document.getElementById("technical");
 const technicalSectionEl = document.getElementById("technical-section");
 
 const envBaseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -48,6 +50,7 @@ let lastOverviewAnnouncement = "";
 let lastTrendAnnouncement = "";
 let lastHeatmapAnnouncement = "";
 let demoMode = false;
+let debugMode = false;
 let metaRangeFrom = "";
 let metaRangeTo = "";
 let recommendedRangeDays = 7;
@@ -69,6 +72,9 @@ const heatmapInflight = new Map();
 const HEATMAP_TTL_MS = 30000;
 
 function setText(el, text) {
+  if (!el) {
+    return;
+  }
   el.textContent = text;
 }
 
@@ -81,7 +87,7 @@ function setContractError(el, info) {
     setText(el, `ERROR HTTP ${info.status}`);
     return;
   }
-  setText(el, "ERROR network");
+  setText(el, "ERROR de red");
 }
 
 function setContractJson(el, data) {
@@ -94,6 +100,11 @@ function readDemoFromUrl() {
   return params.get("demo") === "1";
 }
 
+function readDebugFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get("debug") === "1";
+}
+
 function setDemoMode(enabled) {
   demoMode = enabled;
   if (demoToggleEl) {
@@ -101,15 +112,6 @@ function setDemoMode(enabled) {
   }
   if (demoPillEl) {
     demoPillEl.classList.toggle("is-visible", enabled);
-  }
-  if (technicalSectionEl) {
-    technicalSectionEl.open = enabled;
-  }
-  if (contractHealthSectionEl) {
-    contractHealthSectionEl.open = enabled;
-  }
-  if (contractOverviewSectionEl) {
-    contractOverviewSectionEl.open = enabled;
   }
 }
 
@@ -150,9 +152,9 @@ function setSystemPill(statusKey) {
     return;
   }
   const map = {
-    OK: "Sistema OK",
-    DEGRADED: "Sistema DEGRADADO",
-    ERROR: "Sistema ERROR"
+    OK: "Operación activa",
+    DEGRADED: "Operación con alertas",
+    ERROR: "Operación detenida"
   };
   const label = map[statusKey] || "Sistema";
   systemPillEl.textContent = label;
@@ -409,6 +411,9 @@ function writeFiltersToUrl(values) {
   if (demoMode) {
     params.set("demo", "1");
   }
+  if (debugMode) {
+    params.set("debug", "1");
+  }
   const query = params.toString();
   const newUrl = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
   window.history.replaceState({}, "", newUrl);
@@ -468,6 +473,9 @@ function showInlineFeedback(el, message) {
 }
 
 function clearEl(el) {
+  if (!el) {
+    return;
+  }
   while (el.firstChild) {
     el.removeChild(el.firstChild);
   }
@@ -549,8 +557,7 @@ async function fetchJson(url) {
   }
 }
 
-function renderHealth(data) {
-  clearEl(statusEl);
+function getHealthStatusKey(data) {
   const hasBase =
     data &&
     typeof data === "object" &&
@@ -560,19 +567,27 @@ function renderHealth(data) {
     build &&
     typeof build === "object" &&
     ["gitSha", "deployId", "serviceId", "serviceInstanceId", "region"].every((key) => key in build);
-  const statusText = data && data.ok === true && hasBase && hasBuild ? "OK" : "DEGRADED";
+  return data && data.ok === true && hasBase && hasBuild ? "OK" : "DEGRADED";
+}
+
+function renderHealth(data) {
+  const statusText = getHealthStatusKey(data);
   setSystemPill(statusText);
+  if (!debugMode) {
+    return;
+  }
+  clearEl(statusEl);
   const statusLine = document.createElement("div");
   statusLine.className = `status-pill status-${statusText.toLowerCase()}`;
-  statusLine.textContent = `Status: ${statusText}`;
+  statusLine.textContent = `Estado: ${statusText}`;
   statusEl.appendChild(statusLine);
   setMetaLine(data);
-  announceStatus(`Status ${statusText}`);
+  announceStatus(`Estado ${statusText}`);
   const service = data && typeof data.service === "string" ? data.service : "n/a";
   const env = data && typeof data.env === "string" ? data.env : "n/a";
   const startedAt = data && typeof data.startedAt === "string" ? data.startedAt : "n/a";
   const line = document.createElement("div");
-  line.textContent = `service: ${service} | env: ${env} | startedAt: ${startedAt}`;
+  line.textContent = `servicio: ${service} | entorno: ${env} | inicio: ${startedAt}`;
   statusEl.appendChild(line);
 }
 
@@ -622,6 +637,53 @@ function formatDayLabel(day) {
     return "n/a";
   }
   return dayLabelMap[day] || day;
+}
+
+function getTrendDirection(series) {
+  if (!Array.isArray(series) || series.length < 14) {
+    return null;
+  }
+  const last7 = series.slice(-7);
+  const prev7 = series.slice(-14, -7);
+  const sumLast = last7.reduce(
+    (acc, item) => acc + (typeof item.total === "number" ? item.total : 0),
+    0
+  );
+  const sumPrev = prev7.reduce(
+    (acc, item) => acc + (typeof item.total === "number" ? item.total : 0),
+    0
+  );
+  if (sumPrev === 0 && sumLast > 0) {
+    return "alza";
+  }
+  if (sumPrev === 0) {
+    return null;
+  }
+  const ratio = (sumLast - sumPrev) / sumPrev;
+  if (ratio > 0.08) {
+    return "alza";
+  }
+  if (ratio < -0.08) {
+    return "baja";
+  }
+  return "estable";
+}
+
+function getTrendNote(series, maxValue) {
+  const direction = getTrendDirection(series);
+  if (direction === "alza") {
+    return "Semana en subida.";
+  }
+  if (direction === "baja") {
+    return "Semana en baja.";
+  }
+  if (direction === "estable") {
+    return "Semana estable.";
+  }
+  if (Number.isFinite(maxValue) && maxValue > 0) {
+    return `Pico de la semana: ${formatNumber(maxValue)} turnos.`;
+  }
+  return "";
 }
 
 function countDaysInclusive(from, to) {
@@ -699,6 +761,32 @@ function getHeatmapBestDay(heatmap) {
   return best;
 }
 
+function isHeatmapConcentrated(heatmap) {
+  if (!heatmap || !Array.isArray(heatmap.values)) {
+    return null;
+  }
+  const total = heatmap.values.reduce(
+    (acc, row) =>
+      acc +
+      (Array.isArray(row)
+        ? row.reduce((rowAcc, value) => rowAcc + (typeof value === "number" ? value : 0), 0)
+        : 0),
+    0
+  );
+  const cells = heatmap.values.reduce(
+    (acc, row) => acc + (Array.isArray(row) ? row.length : 0),
+    0
+  );
+  if (cells === 0) {
+    return null;
+  }
+  const average = total / cells;
+  if (!Number.isFinite(average) || average === 0) {
+    return null;
+  }
+  return heatmap.max >= average * 2.5;
+}
+
 function renderInsights() {
   if (!insightsEl || !latestOverview) {
     return;
@@ -723,58 +811,29 @@ function renderInsights() {
     insights.push(`Día más fuerte: ${formatDayLabel(bestDay.day)}`);
   }
   if (latestTimeseries && Array.isArray(latestTimeseries.series)) {
-    const series = latestTimeseries.series;
-    if (series.length >= 14) {
-      const last7 = series.slice(-7);
-      const prev7 = series.slice(-14, -7);
-      const sumLast = last7.reduce(
-        (acc, item) => acc + (typeof item.total === "number" ? item.total : 0),
-        0
-      );
-      const sumPrev = prev7.reduce(
-        (acc, item) => acc + (typeof item.total === "number" ? item.total : 0),
-        0
-      );
-      if (sumPrev === 0 && sumLast > 0) {
-        insights.push("Tendencia al alza en los últimos 7 días.");
-      } else if (sumPrev > 0) {
-        const ratio = (sumLast - sumPrev) / sumPrev;
-        if (ratio > 0.08) {
-          insights.push("Tendencia al alza en los últimos 7 días.");
-        } else if (ratio < -0.08) {
-          insights.push("Tendencia a la baja en los últimos 7 días.");
-        } else {
-          insights.push("Tendencia estable en los últimos 7 días.");
-        }
-      }
+    const direction = getTrendDirection(latestTimeseries.series);
+    if (direction === "alza") {
+      insights.push("Semana en subida.");
+    } else if (direction === "baja") {
+      insights.push("Semana en baja.");
+    } else if (direction === "estable") {
+      insights.push("Semana estable.");
     }
   }
   if (noShowRate > 0.1) {
-    insights.push(`No-shows altos: ${formatPercent(noShowRate)}`);
+    insights.push(`Turnos perdidos altos: ${formatPercent(noShowRate)}`);
   }
-  if (heatmap && Array.isArray(heatmap.values)) {
-    const total = heatmap.values.reduce(
-      (acc, row) =>
-        acc +
-        (Array.isArray(row)
-          ? row.reduce((rowAcc, value) => rowAcc + (typeof value === "number" ? value : 0), 0)
-          : 0),
-      0
-    );
-    const cells = heatmap.values.reduce(
-      (acc, row) => acc + (Array.isArray(row) ? row.length : 0),
-      0
-    );
-    const average = cells > 0 ? total / cells : 0;
-    if (average > 0 && heatmap.max >= average * 2.5) {
-      insights.push("Demanda concentrada en pocas horas.");
-    }
+  const concentration = isHeatmapConcentrated(heatmap);
+  if (concentration === true) {
+    insights.push("Demanda concentrada en pocas horas.");
+  } else if (concentration === false) {
+    insights.push("Demanda distribuida a lo largo del día.");
   }
   clearEl(insightsEl);
   if (insights.length === 0) {
     const empty = document.createElement("div");
     empty.className = "state-message is-visible";
-    empty.textContent = "No hay datos para este rango. Proba 7d o 30d.";
+    empty.textContent = "No hay datos para este rango. Probá 7d o 30d.";
     insightsEl.appendChild(empty);
     return;
   }
@@ -786,6 +845,63 @@ function renderInsights() {
     list.appendChild(li);
   });
   insightsEl.appendChild(list);
+}
+
+function renderTodayNarrative() {
+  if (!todayEl) {
+    return;
+  }
+  clearEl(todayEl);
+  if (!latestOverview || typeof latestOverview.total !== "number" || latestOverview.total === 0) {
+    const empty = document.createElement("div");
+    empty.className = "state-message is-visible";
+    empty.textContent = "Todavía no hay datos suficientes para este rango. Probá 7d o 30d.";
+    todayEl.appendChild(empty);
+    return;
+  }
+  const bullets = [];
+  const heatmap = latestHeatmap && latestHeatmap.heatmap ? latestHeatmap.heatmap : null;
+  const peak = getHeatmapPeak(heatmap);
+  if (peak) {
+    const hour = String(peak.hour).padStart(2, "0");
+    bullets.push(
+      `Pico principal: ${formatDayLabel(peak.day)} ${hour}:00 (${formatNumber(
+        peak.count
+      )} turnos)`
+    );
+  }
+  const noShowRate =
+    typeof latestOverview.noShowRate === "number" ? latestOverview.noShowRate : 0;
+  const noShowLabel =
+    noShowRate > 0.1
+      ? `Turnos perdidos por encima de lo recomendado: ${formatPercent(noShowRate)}`
+      : `Turnos perdidos en rango saludable: ${formatPercent(noShowRate)}`;
+  bullets.push(noShowLabel);
+  const concentration = isHeatmapConcentrated(heatmap);
+  if (concentration === true) {
+    bullets.push("Demanda concentrada en pocas horas.");
+  } else if (concentration === false) {
+    bullets.push("Demanda distribuida a lo largo del día.");
+  }
+  const trend =
+    latestTimeseries && Array.isArray(latestTimeseries.series)
+      ? getTrendDirection(latestTimeseries.series)
+      : null;
+  if (trend === "alza") {
+    bullets.push("Semana en subida.");
+  } else if (trend === "baja") {
+    bullets.push("Semana en baja.");
+  } else if (trend === "estable") {
+    bullets.push("Semana estable.");
+  }
+  const list = document.createElement("ul");
+  list.className = "today-list";
+  bullets.slice(0, 4).forEach((item) => {
+    const li = document.createElement("li");
+    li.textContent = item;
+    list.appendChild(li);
+  });
+  todayEl.appendChild(list);
 }
 
 function renderSummary() {
@@ -817,9 +933,11 @@ function renderSummary() {
   grid.appendChild(buildKpi("Turnos", formatNumber(total), null));
   grid.appendChild(
     buildKpi(
-      "No-shows",
+      "Turnos perdidos",
       formatPercent(noShowRate),
-      total > 0 ? `${formatNumber(noShow)} de ${formatNumber(total)}` : null
+      total > 0
+        ? `${formatNumber(noShow)} de ${formatNumber(total)} · Turnos donde el cliente no se presentó.`
+        : "Turnos donde el cliente no se presentó."
     )
   );
   grid.appendChild(buildKpi("Promedio diario", formatDecimal(avgPerDay), null));
@@ -837,9 +955,9 @@ function renderSummary() {
   if (total === 0) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = "No hay datos para este rango. Proba 7d o 30d.";
+    empty.textContent = "No hay datos para este rango. Probá 7d o 30d.";
     overviewEl.appendChild(empty);
-    announceOverview("No hay datos para este rango. Proba 7d o 30d.");
+    announceOverview("No hay datos para este rango. Probá 7d o 30d.");
   }
 }
 
@@ -847,6 +965,7 @@ function renderOverview(data) {
   latestOverview = data && typeof data === "object" ? data : null;
   renderSummary();
   renderInsights();
+  renderTodayNarrative();
 }
 
 function renderTimeseries(data) {
@@ -856,15 +975,16 @@ function renderTimeseries(data) {
   if (series.length === 0) {
     const empty = document.createElement("div");
     empty.className = "state-message is-visible";
-    empty.textContent = "No hay datos para este rango. Proba 7d o 30d.";
+    empty.textContent = "No hay datos para este rango. Probá 7d o 30d.";
     trendEl.appendChild(empty);
-    announceTrend("No hay datos para este rango. Proba 7d o 30d.");
+    announceTrend("No hay datos para este rango. Probá 7d o 30d.");
     return;
   }
   const totals = series.map((point) =>
     typeof point.total === "number" ? point.total : 0
   );
   const maxValue = Math.max(...totals, 0);
+  const maxIndex = maxValue > 0 ? totals.indexOf(maxValue) : -1;
   const width = 640;
   const height = 180;
   const padding = 24;
@@ -888,7 +1008,7 @@ function renderTimeseries(data) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "Tendencia de turnos por dia");
+  svg.setAttribute("aria-label", "Evolución de turnos por día");
   svg.classList.add("trend-svg");
 
   const area = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -900,6 +1020,16 @@ function renderTimeseries(data) {
   line.setAttribute("d", linePath);
   line.classList.add("trend-line");
   svg.appendChild(line);
+
+  if (maxIndex >= 0 && points[maxIndex]) {
+    const peakPoint = points[maxIndex];
+    const peak = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    peak.setAttribute("cx", String(peakPoint.x));
+    peak.setAttribute("cy", String(peakPoint.y));
+    peak.setAttribute("r", "3.5");
+    peak.classList.add("trend-peak");
+    svg.appendChild(peak);
+  }
 
   const meta = document.createElement("div");
   meta.className = "trend-meta";
@@ -925,6 +1055,13 @@ function renderTimeseries(data) {
   wrapper.className = "trend-chart";
   wrapper.appendChild(svg);
   wrapper.appendChild(meta);
+  const noteText = getTrendNote(series, maxValue);
+  if (noteText) {
+    const note = document.createElement("div");
+    note.className = "trend-note";
+    note.textContent = noteText;
+    wrapper.appendChild(note);
+  }
   trendEl.appendChild(wrapper);
 }
 
@@ -938,11 +1075,11 @@ function renderHeatmap(data) {
   const values = heatmap && Array.isArray(heatmap.values) ? heatmap.values : [];
   const max = heatmap && typeof heatmap.max === "number" ? heatmap.max : 0;
   if (days.length === 0 || hours.length === 0 || values.length === 0) {
-    showHeatmapMessage("No hay datos para este rango. Proba 7d o 30d.", "is-empty");
+    showHeatmapMessage("No hay datos para este rango. Probá 7d o 30d.", "is-empty");
     return;
   }
   if (max === 0) {
-    showHeatmapMessage("No hay datos para este rango. Proba 7d o 30d.", "is-empty");
+    showHeatmapMessage("No hay datos para este rango. Probá 7d o 30d.", "is-empty");
     return;
   }
   const cellSize = 16;
@@ -956,7 +1093,7 @@ function renderHeatmap(data) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "Heatmap de turnos por dia y hora");
+  svg.setAttribute("aria-label", "Búsqueda por día y hora");
   svg.classList.add("heatmap-svg");
 
   hours.forEach((hour, index) => {
@@ -1016,7 +1153,7 @@ function renderHeatmap(data) {
 
   const legend = document.createElement("div");
   legend.className = "heatmap-legend";
-  legend.textContent = `Bajo - Alto | pico: ${formatNumber(max)}`;
+  legend.textContent = `Menos demanda — Más demanda · pico: ${formatNumber(max)}`;
   wrapper.appendChild(legend);
   heatmapEl.appendChild(wrapper);
 }
@@ -1030,18 +1167,21 @@ function setMetaLine(data) {
   const startedAt = data && typeof data.startedAt === "string" ? data.startedAt : "n/a";
   const uptimeSeconds = data && typeof data.uptimeSeconds === "number" ? data.uptimeSeconds : null;
   const uptime = uptimeSeconds === null ? "n/a" : `${uptimeSeconds}s`;
-  metaServiceEl.textContent = `service: ${service}`;
-  metaEnvEl.textContent = `env: ${env}`;
-  metaStartedEl.textContent = `startedAt: ${startedAt}`;
-  metaUptimeEl.textContent = `uptime: ${uptime}`;
+  metaServiceEl.textContent = `servicio: ${service}`;
+  metaEnvEl.textContent = `entorno: ${env}`;
+  metaStartedEl.textContent = `inicio: ${startedAt}`;
+  metaUptimeEl.textContent = `tiempo activo: ${uptime}`;
 }
 
 function renderStatusError(info, message) {
-  clearEl(statusEl);
   setSystemPill("ERROR");
+  if (!debugMode) {
+    return;
+  }
+  clearEl(statusEl);
   const statusLine = document.createElement("div");
   statusLine.className = "status-pill status-error";
-  statusLine.textContent = "Status: ERROR";
+  statusLine.textContent = "Estado: ERROR";
   statusEl.appendChild(statusLine);
   const detail = document.createElement("div");
   if (message) {
@@ -1051,7 +1191,7 @@ function renderStatusError(info, message) {
   }
   statusEl.appendChild(detail);
   setMetaLine(null);
-  announceStatus("Status ERROR");
+  announceStatus("Estado ERROR");
 }
 
 function populateServices(metaData) {
@@ -1144,12 +1284,12 @@ function applyFilters(values) {
     loadTimeseries();
     loadHeatmap();
   } else {
-    showOverviewMessage("Selecciona un rango o usa un preset para ver el resumen.", "is-initial");
+    showOverviewMessage("Selecciona un rango o usa un atajo para ver el resumen.", "is-initial");
     setText(contractOverviewEl, "Esperando filtros...");
     setUpdatedLine(null);
-    showTrendMessage("Selecciona un rango o usa un preset para ver la tendencia.", "is-initial");
-    showHeatmapMessage("Selecciona un rango o usa un preset para ver horas pico.", "is-initial");
-    showInsightsMessage("Selecciona un rango o usa un preset para ver insights.", "is-initial");
+    showTrendMessage("Selecciona un rango o usa un atajo para ver la evolución.", "is-initial");
+    showHeatmapMessage("Selecciona un rango o usa un atajo para ver cuándo te buscan.", "is-initial");
+    showInsightsMessage("Selecciona un rango o usa un atajo para ver lecturas.", "is-initial");
   }
 }
 
@@ -1287,6 +1427,7 @@ async function loadTimeseries() {
     renderTimeseries(cached.data);
     renderSummary();
     renderInsights();
+    renderTodayNarrative();
     return;
   }
   showTrendMessage("Cargando...", "is-loading");
@@ -1295,19 +1436,22 @@ async function loadTimeseries() {
     latestTimeseries = result.data;
     const series = result.data && Array.isArray(result.data.series) ? result.data.series : [];
     if (series.length === 0) {
-      showTrendMessage("No hay datos para este rango. Proba 7d o 30d.", "is-empty");
+      showTrendMessage("No hay datos para este rango. Probá 7d o 30d.", "is-empty");
       renderSummary();
       renderInsights();
+      renderTodayNarrative();
       return;
     }
     renderTimeseries(result.data);
     renderSummary();
     renderInsights();
+    renderTodayNarrative();
   } catch (error) {
     latestTimeseries = null;
     showTrendMessage(describeError(error), "is-error");
     renderSummary();
     renderInsights();
+    renderTodayNarrative();
   }
 }
 
@@ -1320,6 +1464,7 @@ async function loadHeatmap() {
     renderHeatmap(cached.data);
     renderSummary();
     renderInsights();
+    renderTodayNarrative();
     return;
   }
   showHeatmapMessage("Cargando...", "is-loading");
@@ -1328,24 +1473,31 @@ async function loadHeatmap() {
     latestHeatmap = result.data;
     const heatmap = result.data && typeof result.data.heatmap === "object" ? result.data.heatmap : null;
     if (heatmap && typeof heatmap.max === "number" && heatmap.max === 0) {
-      showHeatmapMessage("No hay datos para este rango. Proba 7d o 30d.", "is-empty");
+      showHeatmapMessage("No hay datos para este rango. Probá 7d o 30d.", "is-empty");
       renderSummary();
       renderInsights();
+      renderTodayNarrative();
       return;
     }
     renderHeatmap(result.data);
     renderSummary();
     renderInsights();
+    renderTodayNarrative();
   } catch (error) {
     latestHeatmap = null;
     showHeatmapMessage(describeError(error), "is-error");
     renderSummary();
     renderInsights();
+    renderTodayNarrative();
   }
 }
 
 async function init() {
   const demoFromUrl = readDemoFromUrl();
+  debugMode = readDebugFromUrl();
+  if (!debugMode && technicalPanelEl) {
+    technicalPanelEl.remove();
+  }
   setDemoMode(demoFromUrl);
   const initialFilters = normalizeFilters(readFiltersFromUrl());
   if (filterFromEl) {
@@ -1367,20 +1519,20 @@ async function init() {
     showHeatmapMessage("Cargando...", "is-loading");
     showInsightsMessage("Cargando...", "is-loading");
   } else {
-    showOverviewMessage("Selecciona un rango o usa un preset para ver el resumen.", "is-initial");
+    showOverviewMessage("Selecciona un rango o usa un atajo para ver el resumen.", "is-initial");
     setText(contractOverviewEl, "Esperando filtros...");
-    showTrendMessage("Selecciona un rango o usa un preset para ver la tendencia.", "is-initial");
-    showHeatmapMessage("Selecciona un rango o usa un preset para ver horas pico.", "is-initial");
-    showInsightsMessage("Selecciona un rango o usa un preset para ver insights.", "is-initial");
+    showTrendMessage("Selecciona un rango o usa un atajo para ver la evolución.", "is-initial");
+    showHeatmapMessage("Selecciona un rango o usa un atajo para ver cuándo te buscan.", "is-initial");
+    showInsightsMessage("Selecciona un rango o usa un atajo para ver lecturas.", "is-initial");
   }
   setText(contractHealthEl, "Consultando /health...");
 
   if (!baseUrl) {
-    renderStatusError(null, "VITE_API_BASE_URL requerida en produccion");
-    setText(overviewEl, "Error: VITE_API_BASE_URL requerida en produccion");
-    setText(trendEl, "Error: VITE_API_BASE_URL requerida en produccion");
-    setText(heatmapEl, "Error: VITE_API_BASE_URL requerida en produccion");
-    setText(insightsEl, "Error: VITE_API_BASE_URL requerida en produccion");
+    renderStatusError(null, "VITE_API_BASE_URL requerida en producción");
+    setText(overviewEl, "Error: VITE_API_BASE_URL requerida en producción");
+    setText(trendEl, "Error: VITE_API_BASE_URL requerida en producción");
+    setText(heatmapEl, "Error: VITE_API_BASE_URL requerida en producción");
+    setText(insightsEl, "Error: VITE_API_BASE_URL requerida en producción");
     setText(contractHealthEl, "ERROR baseUrl");
     setText(contractOverviewEl, "ERROR baseUrl");
     return;

@@ -130,7 +130,7 @@ h1 {
 }
 
 .panel-kicker {
-  margin: -6px 0 12px;
+  margin: -8px 0 12px;
   font-size: 0.8rem;
   color: var(--muted);
 }
@@ -147,7 +147,16 @@ h1 {
 }
 
 .summary-panel h2 {
-  font-size: 1.25rem;
+  font-size: 1.3rem;
+}
+
+.today-panel {
+  background: rgba(15, 20, 27, 0.75);
+  border-color: rgba(76, 212, 198, 0.2);
+}
+
+.today-panel h2 {
+  font-size: 1.2rem;
 }
 
 .panel-secondary {
@@ -158,6 +167,11 @@ h1 {
 .panel-secondary h2 {
   color: var(--muted);
   font-size: 1rem;
+}
+
+.panel-visual {
+  background: rgba(12, 16, 21, 0.58);
+  border-color: rgba(31, 42, 51, 0.55);
 }
 
 .summary-header {
@@ -255,6 +269,26 @@ h1 {
   position: absolute;
   left: 0;
   color: var(--muted);
+}
+
+.today-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.today-list li {
+  margin: 8px 0;
+  padding-left: 18px;
+  position: relative;
+  color: var(--text);
+}
+
+.today-list li::before {
+  content: "-";
+  position: absolute;
+  left: 0;
+  color: var(--accent);
 }
 
 label {
@@ -515,7 +549,7 @@ summary:focus-visible {
   width: 100%;
   height: 180px;
   border-radius: 12px;
-  border: 1px solid var(--panel-border);
+  border: 1px solid rgba(31, 42, 51, 0.6);
   background: #0b0f14;
 }
 
@@ -529,12 +563,24 @@ summary:focus-visible {
   fill: rgba(76, 212, 198, 0.12);
 }
 
+.trend-peak {
+  fill: var(--accent-strong);
+  stroke: rgba(7, 20, 24, 0.8);
+  stroke-width: 1;
+}
+
 .trend-meta {
   display: flex;
   justify-content: space-between;
   font-family: var(--mono);
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+.trend-note {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
 }
 
 .heatmap-wrapper {
