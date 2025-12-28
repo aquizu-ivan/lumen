@@ -166,7 +166,7 @@ function describeError(info) {
     }
     return "No se pudo cargar. Revisa filtros o permisos.";
   }
-  return "No se pudo conectar. Revisa conexion o CORS.";
+  return "No se pudo conectar. Revisa la conexión.";
 }
 
 function showFilterNote(message) {
@@ -576,18 +576,52 @@ function renderHealth(data) {
   statusEl.appendChild(line);
 }
 
+const integerFormatter = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
+const percentFormatter = new Intl.NumberFormat("es-AR", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1
+});
+const decimalFormatter = new Intl.NumberFormat("es-AR", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 1
+});
+
 function formatNumber(value) {
   if (!Number.isFinite(value)) {
     return "0";
   }
-  return Math.round(value).toLocaleString("es-AR");
+  return integerFormatter.format(Math.round(value));
 }
 
 function formatPercent(value) {
   if (!Number.isFinite(value)) {
-    return "0.0%";
+    return "0,0%";
   }
-  return `${(Math.round(value * 1000) / 10).toFixed(1)}%`;
+  return `${percentFormatter.format(value * 100)}%`;
+}
+
+function formatDecimal(value) {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  return decimalFormatter.format(value);
+}
+
+const dayLabelMap = {
+  Lun: "Lun",
+  Mar: "Mar",
+  Mie: "Mié",
+  Jue: "Jue",
+  Vie: "Vie",
+  Sab: "Sáb",
+  Dom: "Dom"
+};
+
+function formatDayLabel(day) {
+  if (typeof day !== "string") {
+    return "n/a";
+  }
+  return dayLabelMap[day] || day;
 }
 
 function countDaysInclusive(from, to) {
@@ -678,11 +712,15 @@ function renderInsights() {
   const peak = getHeatmapPeak(heatmap);
   if (peak) {
     const hour = String(peak.hour).padStart(2, "0");
-    insights.push(`Pico principal: ${peak.day} ${hour}:00 (${peak.count} turnos)`);
+    insights.push(
+      `Pico principal: ${formatDayLabel(peak.day)} ${hour}:00 (${formatNumber(
+        peak.count
+      )} turnos)`
+    );
   }
   const bestDay = getHeatmapBestDay(heatmap);
   if (bestDay) {
-    insights.push(`Dia mas fuerte: ${bestDay.day}`);
+    insights.push(`Día más fuerte: ${formatDayLabel(bestDay.day)}`);
   }
   if (latestTimeseries && Array.isArray(latestTimeseries.series)) {
     const series = latestTimeseries.series;
@@ -698,15 +736,15 @@ function renderInsights() {
         0
       );
       if (sumPrev === 0 && sumLast > 0) {
-        insights.push("Tendencia al alza en los ultimos 7 dias.");
+        insights.push("Tendencia al alza en los últimos 7 días.");
       } else if (sumPrev > 0) {
         const ratio = (sumLast - sumPrev) / sumPrev;
         if (ratio > 0.08) {
-          insights.push("Tendencia al alza en los ultimos 7 dias.");
+          insights.push("Tendencia al alza en los últimos 7 días.");
         } else if (ratio < -0.08) {
-          insights.push("Tendencia a la baja en los ultimos 7 dias.");
+          insights.push("Tendencia a la baja en los últimos 7 días.");
         } else {
-          insights.push("Tendencia estable en los ultimos 7 dias.");
+          insights.push("Tendencia estable en los últimos 7 días.");
         }
       }
     }
@@ -736,7 +774,7 @@ function renderInsights() {
   if (insights.length === 0) {
     const empty = document.createElement("div");
     empty.className = "state-message is-visible";
-    empty.textContent = "Sin insights disponibles para este rango.";
+    empty.textContent = "No hay datos para este rango. Proba 7d o 30d.";
     insightsEl.appendChild(empty);
     return;
   }
@@ -784,24 +822,24 @@ function renderSummary() {
       total > 0 ? `${formatNumber(noShow)} de ${formatNumber(total)}` : null
     )
   );
-  grid.appendChild(buildKpi("Promedio diario", avgPerDay.toFixed(1), null));
+  grid.appendChild(buildKpi("Promedio diario", formatDecimal(avgPerDay), null));
   if (cancelled !== null) {
     grid.appendChild(buildKpi("Cancelaciones", formatNumber(cancelled), null));
   }
   if (peak) {
     const hour = String(peak.hour).padStart(2, "0");
-    grid.appendChild(buildKpi("Pico principal", `${peak.day} ${hour}:00`, null));
+    grid.appendChild(buildKpi("Pico", `${formatDayLabel(peak.day)} ${hour}:00`, null));
   }
   if (bestDay) {
-    grid.appendChild(buildKpi("Mejor dia", bestDay.day, null));
+    grid.appendChild(buildKpi("Mejor día", formatDayLabel(bestDay.day), null));
   }
   overviewEl.appendChild(grid);
   if (total === 0) {
     const empty = document.createElement("div");
     empty.className = "empty";
-    empty.textContent = "Sin datos para este rango/servicio. Proba presets 7d o 30d.";
+    empty.textContent = "No hay datos para este rango. Proba 7d o 30d.";
     overviewEl.appendChild(empty);
-    announceOverview("Sin datos para este rango/servicio. Proba presets 7d o 30d.");
+    announceOverview("No hay datos para este rango. Proba 7d o 30d.");
   }
 }
 
@@ -818,9 +856,9 @@ function renderTimeseries(data) {
   if (series.length === 0) {
     const empty = document.createElement("div");
     empty.className = "state-message is-visible";
-    empty.textContent = "Sin datos para este rango.";
+    empty.textContent = "No hay datos para este rango. Proba 7d o 30d.";
     trendEl.appendChild(empty);
-    announceTrend("Sin datos para este rango.");
+    announceTrend("No hay datos para este rango. Proba 7d o 30d.");
     return;
   }
   const totals = series.map((point) =>
@@ -876,7 +914,7 @@ function renderTimeseries(data) {
   const left = document.createElement("span");
   left.textContent = from;
   const center = document.createElement("span");
-  center.textContent = `max: ${maxValue}`;
+  center.textContent = `pico: ${formatNumber(maxValue)}`;
   const right = document.createElement("span");
   right.textContent = to;
   meta.appendChild(left);
@@ -900,11 +938,11 @@ function renderHeatmap(data) {
   const values = heatmap && Array.isArray(heatmap.values) ? heatmap.values : [];
   const max = heatmap && typeof heatmap.max === "number" ? heatmap.max : 0;
   if (days.length === 0 || hours.length === 0 || values.length === 0) {
-    showHeatmapMessage("Sin datos para este rango/servicio.", "is-empty");
+    showHeatmapMessage("No hay datos para este rango. Proba 7d o 30d.", "is-empty");
     return;
   }
   if (max === 0) {
-    showHeatmapMessage("Sin datos para este rango/servicio.", "is-empty");
+    showHeatmapMessage("No hay datos para este rango. Proba 7d o 30d.", "is-empty");
     return;
   }
   const cellSize = 16;
@@ -936,7 +974,7 @@ function renderHeatmap(data) {
 
   days.forEach((day, index) => {
     const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    label.textContent = day;
+    label.textContent = formatDayLabel(day);
     label.setAttribute("x", String(leftLabel - 6));
     label.setAttribute(
       "y",
@@ -978,7 +1016,7 @@ function renderHeatmap(data) {
 
   const legend = document.createElement("div");
   legend.className = "heatmap-legend";
-  legend.textContent = `Bajo - Alto | max: ${max}`;
+  legend.textContent = `Bajo - Alto | pico: ${formatNumber(max)}`;
   wrapper.appendChild(legend);
   heatmapEl.appendChild(wrapper);
 }
@@ -1089,10 +1127,10 @@ function applyFilters(values) {
   }
   writeFiltersToUrl(normalized.values);
   if (normalized.corrected) {
-    showFilterNote("Rango corregido automaticamente");
+    showFilterNote("Rango corregido automáticamente");
     pendingMetaNote = false;
   } else if (pendingMetaNote) {
-    showFilterNote("Preparando dataset...");
+    showFilterNote("Preparando datos...");
     pendingMetaNote = false;
   } else {
     clearFilterNote();
@@ -1101,7 +1139,7 @@ function applyFilters(values) {
     latestOverview = null;
     latestTimeseries = null;
     latestHeatmap = null;
-    showInsightsMessage("Cargando insights...", "is-loading");
+    showInsightsMessage("Cargando...", "is-loading");
     loadOverview();
     loadTimeseries();
     loadHeatmap();
@@ -1109,8 +1147,8 @@ function applyFilters(values) {
     showOverviewMessage("Selecciona un rango o usa un preset para ver el resumen.", "is-initial");
     setText(contractOverviewEl, "Esperando filtros...");
     setUpdatedLine(null);
-    showTrendMessage("Selecciona un rango o usa un preset para ver tendencia.", "is-initial");
-    showHeatmapMessage("Selecciona un rango o usa un preset para ver heatmap.", "is-initial");
+    showTrendMessage("Selecciona un rango o usa un preset para ver la tendencia.", "is-initial");
+    showHeatmapMessage("Selecciona un rango o usa un preset para ver horas pico.", "is-initial");
     showInsightsMessage("Selecciona un rango o usa un preset para ver insights.", "is-initial");
   }
 }
@@ -1220,7 +1258,7 @@ async function loadOverview() {
     setUpdatedLine(cached.fetchedAtMs);
     return;
   }
-  showOverviewMessage("Cargando resumen...", "is-loading");
+  showOverviewMessage("Cargando...", "is-loading");
   setText(contractOverviewEl, "Consultando /metrics/overview...");
   try {
     const result = await fetchOverviewWithCache();
@@ -1251,13 +1289,13 @@ async function loadTimeseries() {
     renderInsights();
     return;
   }
-  showTrendMessage("Cargando tendencia...", "is-loading");
+  showTrendMessage("Cargando...", "is-loading");
   try {
     const result = await fetchTimeseriesWithCache();
     latestTimeseries = result.data;
     const series = result.data && Array.isArray(result.data.series) ? result.data.series : [];
     if (series.length === 0) {
-      showTrendMessage("Sin datos para este rango.", "is-empty");
+      showTrendMessage("No hay datos para este rango. Proba 7d o 30d.", "is-empty");
       renderSummary();
       renderInsights();
       return;
@@ -1284,13 +1322,13 @@ async function loadHeatmap() {
     renderInsights();
     return;
   }
-  showHeatmapMessage("Cargando heatmap...", "is-loading");
+  showHeatmapMessage("Cargando...", "is-loading");
   try {
     const result = await fetchHeatmapWithCache();
     latestHeatmap = result.data;
     const heatmap = result.data && typeof result.data.heatmap === "object" ? result.data.heatmap : null;
     if (heatmap && typeof heatmap.max === "number" && heatmap.max === 0) {
-      showHeatmapMessage("Sin datos para este rango/servicio.", "is-empty");
+      showHeatmapMessage("No hay datos para este rango. Proba 7d o 30d.", "is-empty");
       renderSummary();
       renderInsights();
       return;
@@ -1319,20 +1357,20 @@ async function init() {
   pendingServiceId = initialFilters.values.serviceId;
   writeFiltersToUrl(initialFilters.values);
   if (initialFilters.corrected) {
-    showFilterNote("Rango corregido automaticamente");
+    showFilterNote("Rango corregido automáticamente");
   }
   setText(statusEl, "Consultando /health...");
   announceStatus("Consultando /health...");
   if (initialFilters.values.from || initialFilters.values.to || initialFilters.values.serviceId) {
-    showOverviewMessage("Cargando resumen...", "is-loading");
-    showTrendMessage("Cargando tendencia...", "is-loading");
-    showHeatmapMessage("Cargando heatmap...", "is-loading");
-    showInsightsMessage("Cargando insights...", "is-loading");
+    showOverviewMessage("Cargando...", "is-loading");
+    showTrendMessage("Cargando...", "is-loading");
+    showHeatmapMessage("Cargando...", "is-loading");
+    showInsightsMessage("Cargando...", "is-loading");
   } else {
     showOverviewMessage("Selecciona un rango o usa un preset para ver el resumen.", "is-initial");
     setText(contractOverviewEl, "Esperando filtros...");
-    showTrendMessage("Selecciona un rango o usa un preset para ver tendencia.", "is-initial");
-    showHeatmapMessage("Selecciona un rango o usa un preset para ver heatmap.", "is-initial");
+    showTrendMessage("Selecciona un rango o usa un preset para ver la tendencia.", "is-initial");
+    showHeatmapMessage("Selecciona un rango o usa un preset para ver horas pico.", "is-initial");
     showInsightsMessage("Selecciona un rango o usa un preset para ver insights.", "is-initial");
   }
   setText(contractHealthEl, "Consultando /health...");

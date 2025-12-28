@@ -11,7 +11,7 @@
       <header class="hero">
         <p class="kicker">Observabilidad viva</p>
         <h1>LUMEN — Ops & Turnos</h1>
-        <p class="subtitle">Turnos claros, decisiones rapidas.</p>
+        <p class="subtitle">Una lectura clara de tu operación: ritmo, picos y señales.</p>
         <div class="demo-row">
           <label class="demo-toggle" for="demo-toggle">
             <input type="checkbox" id="demo-toggle" />
@@ -26,36 +26,38 @@
             <h2>Resumen</h2>
             <span id="system-pill" class="status-pill system-pill">Sistema</span>
           </div>
-          <div id="overview-content">Consultando resumen...</div>
+          <div id="overview-content">Cargando...</div>
           <div id="overview-updated" class="updated-line"></div>
           <div id="overview-announce" class="sr-only" aria-live="polite"></div>
         </section>
         <section id="insights" class="panel full">
           <h2>Insights</h2>
-          <div id="insights-content" aria-live="polite">Consultando insights...</div>
+          <div id="insights-content" aria-live="polite">Cargando...</div>
         </section>
         <section id="trend" class="panel full">
-          <h2>Tendencia (turnos/dia)</h2>
-          <div id="trend-content">Consultando /metrics/timeseries...</div>
+          <h2>Tendencia</h2>
+          <p class="panel-kicker">Turnos por día</p>
+          <div id="trend-content">Cargando...</div>
           <div id="trend-announce" class="sr-only" aria-live="polite"></div>
         </section>
         <section id="heatmap" class="panel full">
-          <h2>Horas pico (dia x hora)</h2>
-          <div id="heatmap-content">Consultando /metrics/heatmap...</div>
+          <h2>Horas pico</h2>
+          <p class="panel-kicker">Volumen por hora</p>
+          <div id="heatmap-content">Cargando...</div>
           <div id="heatmap-announce" class="sr-only" aria-live="polite"></div>
         </section>
-        <section id="filters" class="panel full">
+        <section id="filters" class="panel full panel-secondary">
           <h2>Filtros</h2>
           <div>
-            <label for="filter-from">From</label>
+            <label for="filter-from">Desde</label>
             <input type="date" id="filter-from" />
           </div>
           <div>
-            <label for="filter-to">To</label>
+            <label for="filter-to">Hasta</label>
             <input type="date" id="filter-to" />
           </div>
           <div>
-            <label for="filter-service">Service</label>
+            <label for="filter-service">Servicio</label>
             <select id="filter-service">
               <option value="">Todos</option>
             </select>
@@ -81,7 +83,7 @@
         </section>
         <section id="technical" class="panel full">
           <details id="technical-section" class="technical-section">
-            <summary>Tecnica</summary>
+            <summary>Técnica</summary>
             <div class="technical-body">
               <div class="technical-block">
                 <h3>Estado del sistema</h3>
