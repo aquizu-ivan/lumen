@@ -60,6 +60,12 @@ let pendingMetaNote = false;
 let latestOverview = null;
 let latestTimeseries = null;
 let latestHeatmap = null;
+let heatmapTooltipEl = null;
+let heatmapTooltipTitleEl = null;
+let heatmapTooltipSubEl = null;
+let heatmapTooltipWrapper = null;
+let heatmapTooltipPinned = false;
+let heatmapTooltipCloseHandler = null;
 const feedbackTimeouts = new Map();
 const overviewCache = new Map();
 const overviewInflight = new Map();
@@ -481,6 +487,94 @@ function clearEl(el) {
   }
 }
 
+function getSelectedServiceLabel() {
+  if (!filterServiceEl || !filterServiceEl.value) {
+    return "";
+  }
+  const option = filterServiceEl.options[filterServiceEl.selectedIndex];
+  const label = option && option.textContent ? option.textContent : filterServiceEl.value;
+  return label || "";
+}
+
+function setHeatmapTooltipContent(title, subtitle) {
+  if (!heatmapTooltipEl || !heatmapTooltipTitleEl || !heatmapTooltipSubEl) {
+    return;
+  }
+  heatmapTooltipTitleEl.textContent = title;
+  if (subtitle) {
+    heatmapTooltipSubEl.textContent = subtitle;
+    heatmapTooltipSubEl.style.display = "block";
+  } else {
+    heatmapTooltipSubEl.textContent = "";
+    heatmapTooltipSubEl.style.display = "none";
+  }
+}
+
+function positionHeatmapTooltip(anchorRect) {
+  if (!heatmapTooltipEl || !heatmapTooltipWrapper || !anchorRect) {
+    return;
+  }
+  const wrapperRect = heatmapTooltipWrapper.getBoundingClientRect();
+  const centerX = anchorRect.left - wrapperRect.left + anchorRect.width / 2;
+  const topY = anchorRect.top - wrapperRect.top;
+  heatmapTooltipEl.style.left = `${centerX}px`;
+  heatmapTooltipEl.style.top = `${topY}px`;
+  heatmapTooltipEl.style.transform = "translate(-50%, -100%)";
+
+  const tooltipRect = heatmapTooltipEl.getBoundingClientRect();
+  const padding = 8;
+  const half = tooltipRect.width / 2;
+  const minX = padding + half;
+  const maxX = wrapperRect.width - padding - half;
+  const clampedX = maxX > minX ? Math.min(maxX, Math.max(minX, centerX)) : centerX;
+  const minTop = padding + tooltipRect.height;
+  const clampedTop = Math.max(minTop, topY);
+
+  heatmapTooltipEl.style.left = `${clampedX}px`;
+  heatmapTooltipEl.style.top = `${clampedTop}px`;
+}
+
+function showHeatmapTooltip(payload, anchorRect, pinned) {
+  if (!payload || !heatmapTooltipEl) {
+    return;
+  }
+  const dayLabel = formatDayLabel(payload.day);
+  const hourLabel = String(payload.hour).padStart(2, "0");
+  const title = `${dayLabel} ${hourLabel}:00 · ${formatNumber(payload.count)} turnos`;
+  const serviceLabel = getSelectedServiceLabel();
+  const subtitle = serviceLabel ? `Servicio: ${serviceLabel}` : "";
+  setHeatmapTooltipContent(title, subtitle);
+  heatmapTooltipPinned = Boolean(pinned);
+  heatmapTooltipEl.classList.add("is-visible");
+  heatmapTooltipEl.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => positionHeatmapTooltip(anchorRect));
+}
+
+function hideHeatmapTooltip() {
+  if (!heatmapTooltipEl) {
+    return;
+  }
+  heatmapTooltipPinned = false;
+  heatmapTooltipEl.classList.remove("is-visible");
+  heatmapTooltipEl.setAttribute("aria-hidden", "true");
+}
+
+function attachHeatmapTooltipClose(wrapper) {
+  if (heatmapTooltipCloseHandler) {
+    document.removeEventListener("pointerdown", heatmapTooltipCloseHandler);
+  }
+  heatmapTooltipCloseHandler = (event) => {
+    if (!heatmapTooltipPinned) {
+      return;
+    }
+    if (wrapper && wrapper.contains(event.target)) {
+      return;
+    }
+    hideHeatmapTooltip();
+  };
+  document.addEventListener("pointerdown", heatmapTooltipCloseHandler);
+}
+
 function showOverviewMessage(message, tone) {
   clearEl(overviewEl);
   const msg = document.createElement("div");
@@ -623,6 +717,13 @@ function formatDecimal(value) {
 }
 
 const dayLabelMap = {
+  Mon: "Lun",
+  Tue: "Mar",
+  Wed: "Mié",
+  Thu: "Jue",
+  Fri: "Vie",
+  Sat: "Sáb",
+  Sun: "Dom",
   Lun: "Lun",
   Mar: "Mar",
   Mie: "Mié",
@@ -1011,8 +1112,29 @@ function renderTimeseries(data) {
   svg.setAttribute("aria-label", "Evolución de turnos por día");
   svg.classList.add("trend-svg");
 
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+  const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+  gradient.setAttribute("id", "trend-area-gradient");
+  gradient.setAttribute("x1", "0");
+  gradient.setAttribute("y1", "0");
+  gradient.setAttribute("x2", "0");
+  gradient.setAttribute("y2", "1");
+  const stopTop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+  stopTop.setAttribute("offset", "0%");
+  stopTop.setAttribute("stop-color", "#4cd4c6");
+  stopTop.setAttribute("stop-opacity", "0.35");
+  const stopBottom = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+  stopBottom.setAttribute("offset", "100%");
+  stopBottom.setAttribute("stop-color", "#4cd4c6");
+  stopBottom.setAttribute("stop-opacity", "0.03");
+  gradient.appendChild(stopTop);
+  gradient.appendChild(stopBottom);
+  defs.appendChild(gradient);
+  svg.appendChild(defs);
+
   const area = document.createElementNS("http://www.w3.org/2000/svg", "path");
   area.setAttribute("d", areaPath);
+  area.setAttribute("fill", "url(#trend-area-gradient)");
   area.classList.add("trend-area");
   svg.appendChild(area);
 
@@ -1023,12 +1145,31 @@ function renderTimeseries(data) {
 
   if (maxIndex >= 0 && points[maxIndex]) {
     const peakPoint = points[maxIndex];
+    const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    halo.setAttribute("cx", String(peakPoint.x));
+    halo.setAttribute("cy", String(peakPoint.y));
+    halo.setAttribute("r", "8.5");
+    halo.classList.add("trend-peak-halo");
+    svg.appendChild(halo);
+
     const peak = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     peak.setAttribute("cx", String(peakPoint.x));
     peak.setAttribute("cy", String(peakPoint.y));
-    peak.setAttribute("r", "3.5");
+    peak.setAttribute("r", "3.8");
     peak.classList.add("trend-peak");
     svg.appendChild(peak);
+
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    const anchor = peakPoint.x > width * 0.7 ? "end" : "start";
+    const labelOffset = anchor === "end" ? -10 : 10;
+    const labelX = peakPoint.x + labelOffset;
+    const labelY = Math.max(14, peakPoint.y - 10);
+    label.setAttribute("x", String(labelX));
+    label.setAttribute("y", String(labelY));
+    label.setAttribute("text-anchor", anchor);
+    label.classList.add("trend-peak-label");
+    label.textContent = `Pico: ${formatNumber(maxValue)} turnos`;
+    svg.appendChild(label);
   }
 
   const meta = document.createElement("div");
@@ -1044,7 +1185,7 @@ function renderTimeseries(data) {
   const left = document.createElement("span");
   left.textContent = from;
   const center = document.createElement("span");
-  center.textContent = `pico: ${formatNumber(maxValue)}`;
+  center.textContent = `Pico: ${formatNumber(maxValue)} turnos`;
   const right = document.createElement("span");
   right.textContent = to;
   meta.appendChild(left);
@@ -1067,6 +1208,11 @@ function renderTimeseries(data) {
 
 function renderHeatmap(data) {
   clearEl(heatmapEl);
+  heatmapTooltipPinned = false;
+  heatmapTooltipEl = null;
+  heatmapTooltipTitleEl = null;
+  heatmapTooltipSubEl = null;
+  heatmapTooltipWrapper = null;
   const safeData = data && typeof data === "object" ? data : {};
   const heatmap =
     safeData.heatmap && typeof safeData.heatmap === "object" ? safeData.heatmap : null;
@@ -1128,7 +1274,8 @@ function renderHeatmap(data) {
       const raw = row[hourIndex];
       const count = typeof raw === "number" ? raw : 0;
       const ratio = max === 0 ? 0 : count / max;
-      const alpha = Math.min(0.82, 0.08 + ratio * 0.74);
+      const eased = Math.pow(ratio, 0.7);
+      const alpha = Math.min(0.78, 0.04 + eased * 0.64);
       const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
       rect.setAttribute(
         "x",
@@ -1143,6 +1290,36 @@ function renderHeatmap(data) {
       rect.setAttribute("rx", "3");
       rect.setAttribute("fill", `rgba(76, 212, 198, ${alpha})`);
       rect.classList.add("heatmap-cell");
+      const payload = {
+        day: days[dayIndex],
+        hour: hours[hourIndex],
+        count
+      };
+      rect.addEventListener("mouseenter", (event) => {
+        if (heatmapTooltipPinned) {
+          return;
+        }
+        showHeatmapTooltip(payload, event.currentTarget.getBoundingClientRect(), false);
+      });
+      rect.addEventListener("mousemove", (event) => {
+        if (heatmapTooltipPinned) {
+          return;
+        }
+        showHeatmapTooltip(payload, event.currentTarget.getBoundingClientRect(), false);
+      });
+      rect.addEventListener("mouseleave", () => {
+        if (heatmapTooltipPinned) {
+          return;
+        }
+        hideHeatmapTooltip();
+      });
+      rect.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse") {
+          return;
+        }
+        event.preventDefault();
+        showHeatmapTooltip(payload, event.currentTarget.getBoundingClientRect(), true);
+      });
       svg.appendChild(rect);
     }
   }
@@ -1150,12 +1327,39 @@ function renderHeatmap(data) {
   const wrapper = document.createElement("div");
   wrapper.className = "heatmap-wrapper";
   wrapper.appendChild(svg);
+  const tooltip = document.createElement("div");
+  tooltip.className = "heatmap-tooltip";
+  tooltip.setAttribute("role", "tooltip");
+  tooltip.setAttribute("aria-hidden", "true");
+  const tooltipTitle = document.createElement("div");
+  tooltipTitle.className = "heatmap-tooltip-title";
+  const tooltipSub = document.createElement("div");
+  tooltipSub.className = "heatmap-tooltip-sub";
+  tooltip.appendChild(tooltipTitle);
+  tooltip.appendChild(tooltipSub);
+  heatmapTooltipEl = tooltip;
+  heatmapTooltipTitleEl = tooltipTitle;
+  heatmapTooltipSubEl = tooltipSub;
+  heatmapTooltipWrapper = wrapper;
+  wrapper.appendChild(tooltip);
+  wrapper.addEventListener("pointerdown", (event) => {
+    if (!heatmapTooltipPinned) {
+      return;
+    }
+    if (event.target && typeof event.target.closest === "function") {
+      if (event.target.closest(".heatmap-cell")) {
+        return;
+      }
+    }
+    hideHeatmapTooltip();
+  });
 
   const legend = document.createElement("div");
   legend.className = "heatmap-legend";
   legend.textContent = `Menos demanda — Más demanda · pico: ${formatNumber(max)}`;
   wrapper.appendChild(legend);
   heatmapEl.appendChild(wrapper);
+  attachHeatmapTooltipClose(wrapper);
 }
 
 function setMetaLine(data) {

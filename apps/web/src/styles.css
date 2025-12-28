@@ -555,7 +555,9 @@ summary:focus-visible {
 
 .trend-line {
   stroke: var(--accent);
-  stroke-width: 2;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   fill: none;
 }
 
@@ -567,6 +569,16 @@ summary:focus-visible {
   fill: var(--accent-strong);
   stroke: rgba(7, 20, 24, 0.8);
   stroke-width: 1;
+}
+
+.trend-peak-halo {
+  fill: rgba(76, 212, 198, 0.22);
+}
+
+.trend-peak-label {
+  fill: var(--text);
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .trend-meta {
@@ -587,6 +599,7 @@ summary:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative;
 }
 
 .heatmap-svg {
@@ -606,6 +619,43 @@ summary:focus-visible {
 .heatmap-cell {
   stroke: var(--panel-border);
   stroke-width: 1;
+  cursor: pointer;
+  transition: fill 0.15s ease, stroke 0.15s ease;
+}
+
+.heatmap-cell:hover {
+  stroke: rgba(76, 212, 198, 0.45);
+}
+
+.heatmap-tooltip {
+  position: absolute;
+  z-index: 2;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(76, 212, 198, 0.3);
+  background: rgba(10, 14, 20, 0.92);
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translate(-50%, -100%);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+}
+
+.heatmap-tooltip.is-visible {
+  opacity: 1;
+  transform: translate(-50%, -100%) translateY(-4px);
+}
+
+.heatmap-tooltip-title {
+  font-weight: 600;
+}
+
+.heatmap-tooltip-sub {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 
 .heatmap-legend {
