@@ -148,3 +148,10 @@
    - Tecnica colapsada por defecto.
 3) Cambiar serviceId + preset 30d:
    - KPIs cambian, insights cambian, charts cambian.
+
+## Ticket-19 - Pulido premium
+- No hay decimales largos en KPIs o insights.
+- % con 1 decimal y coma ES.
+- Copy humano (sin palabras técnicas visibles).
+- Resumen se entiende en 30s con demo=1.
+- Técnica colapsada por defecto.
