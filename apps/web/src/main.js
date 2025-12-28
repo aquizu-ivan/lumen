@@ -1,3 +1,5 @@
+import * as echarts from "echarts";
+
 const statusEl = document.getElementById("status-content");
 const overviewEl = document.getElementById("overview-content");
 const metaServiceEl = document.getElementById("meta-service");
@@ -64,12 +66,15 @@ let pendingMetaNote = false;
 let latestOverview = null;
 let latestTimeseries = null;
 let latestHeatmap = null;
-let heatmapTooltipEl = null;
-let heatmapTooltipTitleEl = null;
-let heatmapTooltipSubEl = null;
-let heatmapTooltipWrapper = null;
-let heatmapTooltipPinned = false;
-let heatmapTooltipCloseHandler = null;
+let trendChart = null;
+let trendChartEl = null;
+let trendWrapperEl = null;
+let trendMetaEl = null;
+let trendNoteEl = null;
+let heatmapChart = null;
+let heatmapChartEl = null;
+let heatmapWrapperEl = null;
+let heatmapLegendEl = null;
 const feedbackTimeouts = new Map();
 const overviewCache = new Map();
 const overviewInflight = new Map();
@@ -517,6 +522,89 @@ function hideHeatmapCallout() {
   }
 }
 
+function disposeTrendChart() {
+  if (trendChart) {
+    trendChart.dispose();
+  }
+  trendChart = null;
+  trendChartEl = null;
+  trendWrapperEl = null;
+  trendMetaEl = null;
+  trendNoteEl = null;
+}
+
+function disposeHeatmapChart() {
+  if (heatmapChart) {
+    heatmapChart.dispose();
+  }
+  heatmapChart = null;
+  heatmapChartEl = null;
+  heatmapWrapperEl = null;
+  heatmapLegendEl = null;
+}
+
+function ensureTrendChartContainer() {
+  if (!trendEl) {
+    return null;
+  }
+  if (!trendWrapperEl) {
+    trendWrapperEl = document.createElement("div");
+    trendWrapperEl.className = "trend-chart";
+    trendChartEl = document.createElement("div");
+    trendChartEl.className = "trend-echart";
+    trendMetaEl = document.createElement("div");
+    trendMetaEl.className = "trend-meta";
+    trendNoteEl = document.createElement("div");
+    trendNoteEl.className = "trend-note";
+    trendWrapperEl.appendChild(trendChartEl);
+    trendWrapperEl.appendChild(trendMetaEl);
+    trendWrapperEl.appendChild(trendNoteEl);
+  }
+  Array.from(trendEl.children).forEach((child) => {
+    if (child !== trendWrapperEl) {
+      trendEl.removeChild(child);
+    }
+  });
+  if (!trendEl.contains(trendWrapperEl)) {
+    trendEl.appendChild(trendWrapperEl);
+  }
+  return trendChartEl;
+}
+
+function ensureHeatmapChartContainer() {
+  if (!heatmapEl) {
+    return null;
+  }
+  if (!heatmapWrapperEl) {
+    heatmapWrapperEl = document.createElement("div");
+    heatmapWrapperEl.className = "heatmap-wrapper";
+    heatmapChartEl = document.createElement("div");
+    heatmapChartEl.className = "heatmap-echart";
+    heatmapLegendEl = document.createElement("div");
+    heatmapLegendEl.className = "heatmap-legend";
+    heatmapWrapperEl.appendChild(heatmapChartEl);
+    heatmapWrapperEl.appendChild(heatmapLegendEl);
+  }
+  Array.from(heatmapEl.children).forEach((child) => {
+    if (child !== heatmapWrapperEl) {
+      heatmapEl.removeChild(child);
+    }
+  });
+  if (!heatmapEl.contains(heatmapWrapperEl)) {
+    heatmapEl.appendChild(heatmapWrapperEl);
+  }
+  return heatmapChartEl;
+}
+
+function resizeCharts() {
+  if (trendChart) {
+    trendChart.resize();
+  }
+  if (heatmapChart) {
+    heatmapChart.resize();
+  }
+}
+
 function getSelectedServiceLabel() {
   if (!filterServiceEl || !filterServiceEl.value) {
     return "";
@@ -524,85 +612,6 @@ function getSelectedServiceLabel() {
   const option = filterServiceEl.options[filterServiceEl.selectedIndex];
   const label = option && option.textContent ? option.textContent : filterServiceEl.value;
   return label || "";
-}
-
-function setHeatmapTooltipContent(title, subtitle) {
-  if (!heatmapTooltipEl || !heatmapTooltipTitleEl || !heatmapTooltipSubEl) {
-    return;
-  }
-  heatmapTooltipTitleEl.textContent = title;
-  if (subtitle) {
-    heatmapTooltipSubEl.textContent = subtitle;
-    heatmapTooltipSubEl.style.display = "block";
-  } else {
-    heatmapTooltipSubEl.textContent = "";
-    heatmapTooltipSubEl.style.display = "none";
-  }
-}
-
-function positionHeatmapTooltip(anchorRect) {
-  if (!heatmapTooltipEl || !heatmapTooltipWrapper || !anchorRect) {
-    return;
-  }
-  const wrapperRect = heatmapTooltipWrapper.getBoundingClientRect();
-  const centerX = anchorRect.left - wrapperRect.left + anchorRect.width / 2;
-  const topY = anchorRect.top - wrapperRect.top;
-  heatmapTooltipEl.style.left = `${centerX}px`;
-  heatmapTooltipEl.style.top = `${topY}px`;
-  heatmapTooltipEl.style.transform = "translate(-50%, -100%)";
-
-  const tooltipRect = heatmapTooltipEl.getBoundingClientRect();
-  const padding = 8;
-  const half = tooltipRect.width / 2;
-  const minX = padding + half;
-  const maxX = wrapperRect.width - padding - half;
-  const clampedX = maxX > minX ? Math.min(maxX, Math.max(minX, centerX)) : centerX;
-  const minTop = padding + tooltipRect.height;
-  const clampedTop = Math.max(minTop, topY);
-
-  heatmapTooltipEl.style.left = `${clampedX}px`;
-  heatmapTooltipEl.style.top = `${clampedTop}px`;
-}
-
-function showHeatmapTooltip(payload, anchorRect, pinned) {
-  if (!payload || !heatmapTooltipEl) {
-    return;
-  }
-  const dayLabel = formatDayLabel(payload.day);
-  const hourLabel = String(payload.hour).padStart(2, "0");
-  const title = `${dayLabel} ${hourLabel}:00 · ${formatNumber(payload.count)} turnos`;
-  const serviceLabel = getSelectedServiceLabel();
-  const subtitle = serviceLabel ? `Servicio: ${serviceLabel}` : "";
-  setHeatmapTooltipContent(title, subtitle);
-  heatmapTooltipPinned = Boolean(pinned);
-  heatmapTooltipEl.classList.add("is-visible");
-  heatmapTooltipEl.setAttribute("aria-hidden", "false");
-  requestAnimationFrame(() => positionHeatmapTooltip(anchorRect));
-}
-
-function hideHeatmapTooltip() {
-  if (!heatmapTooltipEl) {
-    return;
-  }
-  heatmapTooltipPinned = false;
-  heatmapTooltipEl.classList.remove("is-visible");
-  heatmapTooltipEl.setAttribute("aria-hidden", "true");
-}
-
-function attachHeatmapTooltipClose(wrapper) {
-  if (heatmapTooltipCloseHandler) {
-    document.removeEventListener("pointerdown", heatmapTooltipCloseHandler);
-  }
-  heatmapTooltipCloseHandler = (event) => {
-    if (!heatmapTooltipPinned) {
-      return;
-    }
-    if (wrapper && wrapper.contains(event.target)) {
-      return;
-    }
-    hideHeatmapTooltip();
-  };
-  document.addEventListener("pointerdown", heatmapTooltipCloseHandler);
 }
 
 function showOverviewMessage(message, tone) {
@@ -622,6 +631,7 @@ function showOverviewMessage(message, tone) {
 }
 
 function showTrendMessage(message, tone) {
+  disposeTrendChart();
   clearEl(trendEl);
   setCallout(trendCalloutEl);
   const msg = document.createElement("div");
@@ -638,6 +648,7 @@ function showTrendMessage(message, tone) {
 }
 
 function showHeatmapMessage(message, tone) {
+  disposeHeatmapChart();
   clearEl(heatmapEl);
   hideHeatmapCallout();
   const msg = document.createElement("div");
@@ -1113,115 +1124,21 @@ function renderOverview(data) {
 }
 
 function renderTimeseries(data) {
-  clearEl(trendEl);
   const safeData = data && typeof data === "object" ? data : {};
   const series = Array.isArray(safeData.series) ? safeData.series : [];
   if (series.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "state-message is-visible";
-    empty.textContent = "No hay datos para este rango. Probá 7d o 30d.";
-    trendEl.appendChild(empty);
-    announceTrend("No hay datos para este rango. Probá 7d o 30d.");
-    setCallout(trendCalloutEl);
+    showTrendMessage("No hay datos para este rango. Probá 7d o 30d.", "is-empty");
     return;
   }
   const totals = series.map((point) =>
     typeof point.total === "number" ? point.total : 0
   );
   const maxValue = Math.max(...totals, 0);
-  const maxIndex = maxValue > 0 ? totals.indexOf(maxValue) : -1;
+  const maxIndex = maxValue > 0 ? totals.indexOf(maxValue) : 0;
   const peakDate =
-    maxIndex >= 0 && series[maxIndex] && typeof series[maxIndex].date === "string"
+    series[maxIndex] && typeof series[maxIndex].date === "string"
       ? series[maxIndex].date
       : "";
-  const width = 640;
-  const height = 180;
-  const padding = 24;
-  const innerWidth = width - padding * 2;
-  const innerHeight = height - padding * 2;
-  const points = series.map((point, index) => {
-    const value = typeof point.total === "number" ? point.total : 0;
-    const ratio = maxValue === 0 ? 0 : value / maxValue;
-    const x =
-      padding + (innerWidth * index) / Math.max(1, series.length - 1);
-    const y = padding + innerHeight - ratio * innerHeight;
-    return { x, y };
-  });
-  const linePath = points
-    .map((point, index) => `${index === 0 ? "M" : "L"}${point.x} ${point.y}`)
-    .join(" ");
-  const bottom = padding + innerHeight;
-  const areaPath = `${linePath} L ${points[points.length - 1].x} ${bottom} L ${
-    points[0].x
-  } ${bottom} Z`;
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "Evolución de turnos por día");
-  svg.classList.add("trend-svg");
-
-  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-  const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
-  gradient.setAttribute("id", "trend-area-gradient");
-  gradient.setAttribute("x1", "0");
-  gradient.setAttribute("y1", "0");
-  gradient.setAttribute("x2", "0");
-  gradient.setAttribute("y2", "1");
-  const stopTop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-  stopTop.setAttribute("offset", "0%");
-  stopTop.setAttribute("stop-color", "#4cd4c6");
-  stopTop.setAttribute("stop-opacity", "0.35");
-  const stopBottom = document.createElementNS("http://www.w3.org/2000/svg", "stop");
-  stopBottom.setAttribute("offset", "100%");
-  stopBottom.setAttribute("stop-color", "#4cd4c6");
-  stopBottom.setAttribute("stop-opacity", "0.03");
-  gradient.appendChild(stopTop);
-  gradient.appendChild(stopBottom);
-  defs.appendChild(gradient);
-  svg.appendChild(defs);
-
-  const area = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  area.setAttribute("d", areaPath);
-  area.setAttribute("fill", "url(#trend-area-gradient)");
-  area.classList.add("trend-area");
-  svg.appendChild(area);
-
-  const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  line.setAttribute("d", linePath);
-  line.classList.add("trend-line");
-  svg.appendChild(line);
-
-  if (maxIndex >= 0 && points[maxIndex]) {
-    const peakPoint = points[maxIndex];
-    const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    halo.setAttribute("cx", String(peakPoint.x));
-    halo.setAttribute("cy", String(peakPoint.y));
-    halo.setAttribute("r", "8.5");
-    halo.classList.add("trend-peak-halo");
-    svg.appendChild(halo);
-
-    const peak = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    peak.setAttribute("cx", String(peakPoint.x));
-    peak.setAttribute("cy", String(peakPoint.y));
-    peak.setAttribute("r", "3.8");
-    peak.classList.add("trend-peak");
-    svg.appendChild(peak);
-
-    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    const anchor = peakPoint.x > width * 0.7 ? "end" : "start";
-    const labelOffset = anchor === "end" ? -10 : 10;
-    const labelX = peakPoint.x + labelOffset;
-    const labelY = Math.max(14, peakPoint.y - 10);
-    label.setAttribute("x", String(labelX));
-    label.setAttribute("y", String(labelY));
-    label.setAttribute("text-anchor", anchor);
-    label.classList.add("trend-peak-label");
-    label.textContent = `Pico: ${formatNumber(maxValue)} turnos`;
-    svg.appendChild(label);
-  }
-
-  const meta = document.createElement("div");
-  meta.className = "trend-meta";
   const from =
     safeData.summary && typeof safeData.summary.from === "string"
       ? safeData.summary.from
@@ -1230,28 +1147,118 @@ function renderTimeseries(data) {
     safeData.summary && typeof safeData.summary.to === "string"
       ? safeData.summary.to
       : series[series.length - 1].date;
-  const left = document.createElement("span");
-  left.textContent = from;
-  const center = document.createElement("span");
-  center.textContent = `Pico: ${formatNumber(maxValue)} turnos`;
-  const right = document.createElement("span");
-  right.textContent = to;
-  meta.appendChild(left);
-  meta.appendChild(center);
-  meta.appendChild(right);
-
-  const wrapper = document.createElement("div");
-  wrapper.className = "trend-chart";
-  wrapper.appendChild(svg);
-  wrapper.appendChild(meta);
-  const noteText = getTrendNote(series, maxValue);
-  if (noteText) {
-    const note = document.createElement("div");
-    note.className = "trend-note";
-    note.textContent = noteText;
-    wrapper.appendChild(note);
+  const chartEl = ensureTrendChartContainer();
+  if (!chartEl) {
+    return;
   }
-  trendEl.appendChild(wrapper);
+  if (!trendChart) {
+    trendChart = echarts.init(chartEl, null, { renderer: "canvas" });
+  }
+  const gradient = new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+    { offset: 0, color: "rgba(76, 212, 198, 0.32)" },
+    { offset: 1, color: "rgba(76, 212, 198, 0.04)" }
+  ]);
+  const xLabels = series.map((point) => point.date);
+  const labelPosition = maxIndex > series.length * 0.65 ? "left" : "right";
+  const peakLabel = `Pico: ${formatNumber(maxValue)} turnos`;
+  const option = {
+    animationDuration: 520,
+    animationEasing: "cubicOut",
+    grid: { left: 12, right: 12, top: 10, bottom: 22 },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "rgba(10, 14, 20, 0.92)",
+      borderColor: "rgba(76, 212, 198, 0.3)",
+      borderWidth: 1,
+      textStyle: { color: "#e7edf2", fontSize: 12 },
+      axisPointer: {
+        type: "line",
+        lineStyle: { color: "rgba(76, 212, 198, 0.18)" }
+      },
+      formatter: (params) => {
+        const item = params && params[0];
+        if (!item) {
+          return "";
+        }
+        return `${item.axisValue} · ${formatNumber(item.data)} turnos`;
+      }
+    },
+    xAxis: {
+      type: "category",
+      data: xLabels,
+      boundaryGap: false,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: {
+        color: "#9aa6b2",
+        fontSize: 10,
+        formatter: (value, index) =>
+          index === 0 || index === xLabels.length - 1 ? value : ""
+      }
+    },
+    yAxis: {
+      type: "value",
+      min: 0,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { show: false },
+      axisLabel: { show: false }
+    },
+    series: [
+      {
+        type: "line",
+        data: totals,
+        smooth: 0.35,
+        showSymbol: false,
+        lineStyle: { width: 1.6, color: "#4cd4c6", cap: "round" },
+        areaStyle: { color: gradient }
+      },
+      {
+        type: "scatter",
+        data: [{ value: [xLabels[maxIndex], maxValue] }],
+        symbolSize: 16,
+        itemStyle: { color: "rgba(76, 212, 198, 0.2)" },
+        silent: true
+      },
+      {
+        type: "scatter",
+        data: [
+          {
+            value: [xLabels[maxIndex], maxValue],
+            label: {
+              show: true,
+              formatter: peakLabel,
+              position: labelPosition,
+              distance: 8,
+              color: "#e7edf2",
+              fontSize: 11,
+              fontWeight: 600
+            }
+          }
+        ],
+        symbolSize: 7,
+        itemStyle: { color: "#6ff1e2", borderColor: "#0b0f14", borderWidth: 1 }
+      }
+    ]
+  };
+  trendChart.setOption(option, true);
+  if (trendMetaEl) {
+    trendMetaEl.textContent = "";
+    const left = document.createElement("span");
+    left.textContent = from;
+    const center = document.createElement("span");
+    center.textContent = peakLabel;
+    const right = document.createElement("span");
+    right.textContent = to;
+    trendMetaEl.appendChild(left);
+    trendMetaEl.appendChild(center);
+    trendMetaEl.appendChild(right);
+  }
+  if (trendNoteEl) {
+    const noteText = getTrendNote(series, maxValue);
+    trendNoteEl.textContent = noteText || "";
+    trendNoteEl.style.display = noteText ? "block" : "none";
+  }
   if (peakDate) {
     setCallout(trendCalloutEl, (el) => {
       const primary = document.createElement("span");
@@ -1265,15 +1272,10 @@ function renderTimeseries(data) {
   } else {
     setCallout(trendCalloutEl);
   }
+  requestAnimationFrame(resizeCharts);
 }
 
 function renderHeatmap(data) {
-  clearEl(heatmapEl);
-  heatmapTooltipPinned = false;
-  heatmapTooltipEl = null;
-  heatmapTooltipTitleEl = null;
-  heatmapTooltipSubEl = null;
-  heatmapTooltipWrapper = null;
   const safeData = data && typeof data === "object" ? data : {};
   const heatmap =
     safeData.heatmap && typeof safeData.heatmap === "object" ? safeData.heatmap : null;
@@ -1292,138 +1294,112 @@ function renderHeatmap(data) {
     showHeatmapMessage("No hay datos para este rango. Probá 7d o 30d.", "is-empty");
     return;
   }
-  const cellSize = 16;
-  const gap = 4;
-  const leftLabel = 36;
-  const topLabel = 18;
-  const gridWidth = hours.length * cellSize + (hours.length - 1) * gap;
-  const gridHeight = days.length * cellSize + (days.length - 1) * gap;
-  const width = leftLabel + gridWidth + 8;
-  const height = topLabel + gridHeight + 8;
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "Búsqueda por día y hora");
-  svg.classList.add("heatmap-svg");
-
-  hours.forEach((hour, index) => {
-    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    label.textContent = String(hour);
-    label.setAttribute(
-      "x",
-      leftLabel + index * (cellSize + gap) + cellSize / 2
-    );
-    label.setAttribute("y", "12");
-    label.setAttribute("text-anchor", "middle");
-    label.classList.add("heatmap-label");
-    svg.appendChild(label);
-  });
-
-  days.forEach((day, index) => {
-    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    label.textContent = formatDayLabel(day);
-    label.setAttribute("x", String(leftLabel - 6));
-    label.setAttribute(
-      "y",
-      topLabel + index * (cellSize + gap) + cellSize / 2 + 4
-    );
-    label.setAttribute("text-anchor", "end");
-    label.classList.add("heatmap-label");
-    svg.appendChild(label);
-  });
-
+  const chartEl = ensureHeatmapChartContainer();
+  if (!chartEl) {
+    return;
+  }
+  if (!heatmapChart) {
+    heatmapChart = echarts.init(chartEl, null, { renderer: "canvas" });
+  }
+  const dayLabels = days.map((day) => formatDayLabel(day));
+  const hourLabels = hours.map((hour) => String(hour));
+  const seriesData = [];
   for (let dayIndex = 0; dayIndex < days.length; dayIndex += 1) {
     const row = Array.isArray(values[dayIndex]) ? values[dayIndex] : [];
     for (let hourIndex = 0; hourIndex < hours.length; hourIndex += 1) {
       const raw = row[hourIndex];
       const count = typeof raw === "number" ? raw : 0;
-      const ratio = max === 0 ? 0 : count / max;
-      const eased = Math.pow(ratio, 0.7);
-      const alpha = Math.min(0.78, 0.04 + eased * 0.64);
-      const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      rect.setAttribute(
-        "x",
-        String(leftLabel + hourIndex * (cellSize + gap))
-      );
-      rect.setAttribute(
-        "y",
-        String(topLabel + dayIndex * (cellSize + gap))
-      );
-      rect.setAttribute("width", String(cellSize));
-      rect.setAttribute("height", String(cellSize));
-      rect.setAttribute("rx", "3");
-      rect.setAttribute("fill", `rgba(76, 212, 198, ${alpha})`);
-      rect.classList.add("heatmap-cell");
-      const payload = {
-        day: days[dayIndex],
-        hour: hours[hourIndex],
-        count
-      };
-      rect.addEventListener("mouseenter", (event) => {
-        if (heatmapTooltipPinned) {
-          return;
-        }
-        showHeatmapTooltip(payload, event.currentTarget.getBoundingClientRect(), false);
-      });
-      rect.addEventListener("mousemove", (event) => {
-        if (heatmapTooltipPinned) {
-          return;
-        }
-        showHeatmapTooltip(payload, event.currentTarget.getBoundingClientRect(), false);
-      });
-      rect.addEventListener("mouseleave", () => {
-        if (heatmapTooltipPinned) {
-          return;
-        }
-        hideHeatmapTooltip();
-      });
-      rect.addEventListener("pointerdown", (event) => {
-        if (event.pointerType === "mouse") {
-          return;
-        }
-        event.preventDefault();
-        showHeatmapTooltip(payload, event.currentTarget.getBoundingClientRect(), true);
-      });
-      svg.appendChild(rect);
+      seriesData.push([hourIndex, dayIndex, count]);
     }
   }
-
-  const wrapper = document.createElement("div");
-  wrapper.className = "heatmap-wrapper";
-  wrapper.appendChild(svg);
-  const tooltip = document.createElement("div");
-  tooltip.className = "heatmap-tooltip";
-  tooltip.setAttribute("role", "tooltip");
-  tooltip.setAttribute("aria-hidden", "true");
-  const tooltipTitle = document.createElement("div");
-  tooltipTitle.className = "heatmap-tooltip-title";
-  const tooltipSub = document.createElement("div");
-  tooltipSub.className = "heatmap-tooltip-sub";
-  tooltip.appendChild(tooltipTitle);
-  tooltip.appendChild(tooltipSub);
-  heatmapTooltipEl = tooltip;
-  heatmapTooltipTitleEl = tooltipTitle;
-  heatmapTooltipSubEl = tooltipSub;
-  heatmapTooltipWrapper = wrapper;
-  wrapper.appendChild(tooltip);
-  wrapper.addEventListener("pointerdown", (event) => {
-    if (!heatmapTooltipPinned) {
-      return;
-    }
-    if (event.target && typeof event.target.closest === "function") {
-      if (event.target.closest(".heatmap-cell")) {
-        return;
+  const option = {
+    animationDuration: 420,
+    animationEasing: "cubicOut",
+    grid: { top: 16, left: 36, right: 12, bottom: 24 },
+    tooltip: {
+      trigger: "item",
+      backgroundColor: "rgba(10, 14, 20, 0.92)",
+      borderColor: "rgba(76, 212, 198, 0.3)",
+      borderWidth: 1,
+      textStyle: { color: "#e7edf2", fontSize: 12 },
+      formatter: (params) => {
+        if (!params || !Array.isArray(params.value)) {
+          return "";
+        }
+        const hour = hourLabels[params.value[0]] || "";
+        const day = dayLabels[params.value[1]] || "";
+        const count = typeof params.value[2] === "number" ? params.value[2] : 0;
+        const service = getSelectedServiceLabel();
+        let text = `${day} ${hour}:00 · ${formatNumber(count)} turnos`;
+        if (service) {
+          text += `<br/>Servicio: ${service}`;
+        }
+        return text;
+      },
+      position: (point, params, dom, rect, size) => {
+        const [x, y] = point;
+        const [viewWidth, viewHeight] = size.viewSize;
+        const [boxWidth, boxHeight] = size.contentSize;
+        let left = x + 12;
+        if (left + boxWidth > viewWidth) {
+          left = x - boxWidth - 12;
+        }
+        left = Math.max(8, Math.min(left, viewWidth - boxWidth - 8));
+        let top = y - boxHeight - 12;
+        if (top < 8) {
+          top = y + 12;
+        }
+        top = Math.max(8, Math.min(top, viewHeight - boxHeight - 8));
+        return [left, top];
       }
-    }
-    hideHeatmapTooltip();
-  });
-
-  const legend = document.createElement("div");
-  legend.className = "heatmap-legend";
-  legend.textContent = `Menos demanda — Más demanda · pico: ${formatNumber(max)}`;
-  wrapper.appendChild(legend);
-  heatmapEl.appendChild(wrapper);
-  attachHeatmapTooltipClose(wrapper);
+    },
+    xAxis: {
+      type: "category",
+      data: hourLabels,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: "#9aa6b2", fontSize: 10 }
+    },
+    yAxis: {
+      type: "category",
+      data: dayLabels,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: "#9aa6b2", fontSize: 10 }
+    },
+    visualMap: {
+      show: false,
+      min: 0,
+      max: max,
+      inRange: {
+        color: [
+          "rgba(76, 212, 198, 0.08)",
+          "rgba(76, 212, 198, 0.24)",
+          "rgba(76, 212, 198, 0.5)",
+          "rgba(76, 212, 198, 0.78)"
+        ]
+      }
+    },
+    series: [
+      {
+        type: "heatmap",
+        data: seriesData,
+        itemStyle: {
+          borderWidth: 0.5,
+          borderColor: "rgba(31, 42, 51, 0.6)"
+        },
+        emphasis: {
+          itemStyle: {
+            borderColor: "rgba(76, 212, 198, 0.5)"
+          }
+        }
+      }
+    ]
+  };
+  heatmapChart.setOption(option, true);
+  if (heatmapLegendEl) {
+    heatmapLegendEl.textContent = `Menos demanda — Más demanda · pico: ${formatNumber(max)}`;
+  }
   if (peak && typeof peak.hour === "number" && peak.day) {
     const hour = String(peak.hour).padStart(2, "0");
     const label = `${formatDayLabel(peak.day)} ${hour}:00`;
@@ -1439,6 +1415,7 @@ function renderHeatmap(data) {
   } else {
     hideHeatmapCallout();
   }
+  requestAnimationFrame(resizeCharts);
 }
 
 function setMetaLine(data) {
@@ -1915,5 +1892,9 @@ if (copyOverviewBtn) {
     showInlineFeedback(copyOverviewFeedbackEl, ok ? "Copiado" : "No se pudo copiar");
   });
 }
+
+window.addEventListener("resize", () => {
+  requestAnimationFrame(resizeCharts);
+});
 
 init();

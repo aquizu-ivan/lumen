@@ -583,6 +583,11 @@ summary:focus-visible {
   gap: 12px;
 }
 
+.trend-echart {
+  width: 100%;
+  height: 190px;
+}
+
 .trend-svg {
   width: 100%;
   height: 180px;
@@ -638,6 +643,11 @@ summary:focus-visible {
   flex-direction: column;
   gap: 12px;
   position: relative;
+}
+
+.heatmap-echart {
+  width: 100%;
+  height: 260px;
 }
 
 .heatmap-svg {
@@ -807,12 +817,20 @@ ul {
     height: 160px;
   }
 
+  .trend-echart {
+    height: 170px;
+  }
+
   .trend-meta {
     font-size: 0.72rem;
   }
 
   .heatmap-label {
     font-size: 9px;
+  }
+
+  .heatmap-echart {
+    height: 220px;
   }
 
   .heatmap-legend {
