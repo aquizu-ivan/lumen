@@ -162,3 +162,9 @@
 - Resumen + Lecturas clave legibles en 30s; Evolución y Cuándo te buscan visibles.
 - Vista técnica (debug=1): aparece "Información técnica" colapsada y copiar JSON funciona.
 - URLs: https://aquizu-ivan.github.io/lumen/?demo=1 (cliente), https://aquizu-ivan.github.io/lumen/?demo=1&debug=1 (técnica visible).
+
+## Ticket-21 - Gráficos premium IAQUIZU
+- Evolución: pico resaltado (halo + punto + etiqueta) y línea/área suaves.
+- Heatmap: pasar el mouse muestra tooltip con día/hora/turnos; tocar en móvil fija tooltip y tocar afuera lo cierra.
+- Leyenda: "Menos demanda — Más demanda · pico: N".
+- No regresiones: demo=1, presets anclados a /meta, cache/dedupe y foco visible intactos.
