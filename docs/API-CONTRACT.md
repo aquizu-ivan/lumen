@@ -133,6 +133,32 @@
 }
 ```
 
+## GET /metrics/heatmap
+- Query params: from (YYYY-MM-DD), to (YYYY-MM-DD), serviceId (string)
+- Response 200:
+```json
+{
+  "ok": true,
+  "heatmap": {
+    "days": ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"],
+    "hours": [8, 9, 10, 11],
+    "values": [
+      [0, 1, 2, 1],
+      [1, 3, 4, 2],
+      [2, 5, 6, 3],
+      [1, 2, 3, 2],
+      [1, 4, 5, 3],
+      [0, 1, 2, 1],
+      [0, 1, 1, 0]
+    ],
+    "max": 6,
+    "from": "2025-03-25",
+    "to": "2025-03-31",
+    "serviceId": null
+  }
+}
+```
+
 ## Errores
 - Error shape único:
 ```json
