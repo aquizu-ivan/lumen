@@ -42,27 +42,48 @@
           <div id="overview-updated" class="updated-line"></div>
           <div id="overview-announce" class="sr-only" aria-live="polite"></div>
         </section>
-        <section id="insights" class="panel full panel-compact">
-          <h2>Lecturas clave</h2>
-          <p class="panel-kicker">Señales simples basadas en tus datos.</p>
-          <div id="insights-content" aria-live="polite">Cargando...</div>
-        </section>
-        <section id="trend" class="panel full panel-visual">
-          <h2>Evolución</h2>
-          <p class="panel-kicker">Cómo se movieron los turnos día a día.</p>
-          <div id="trend-content">Cargando...</div>
-          <div id="trend-callout" class="panel-callout"></div>
-          <div id="trend-announce" class="sr-only" aria-live="polite"></div>
-        </section>
-        <section id="heatmap" class="panel full panel-visual">
-          <h2>Cuándo te buscan</h2>
-          <p class="panel-kicker">En qué horas se concentra la demanda.</p>
-          <div id="heatmap-content">Cargando...</div>
-          <div id="heatmap-callout" class="panel-callout">
-            <span id="heatmap-callout-text"></span>
-            <span id="heatmap-callout-chip" class="callout-chip"></span>
+        <section id="insights" class="panel full panel-compact panel-collapsible is-open">
+          <button class="panel-toggle" type="button" aria-expanded="true" aria-controls="insights-body">
+            <span class="panel-toggle-text">
+              <span class="panel-title">Lecturas clave</span>
+              <span class="panel-kicker">Señales simples basadas en tus datos.</span>
+            </span>
+            <span class="panel-toggle-icon" aria-hidden="true"></span>
+          </button>
+          <div id="insights-body" class="panel-body" role="region" aria-label="Lecturas clave">
+            <div id="insights-content" aria-live="polite">Cargando...</div>
           </div>
-          <div id="heatmap-announce" class="sr-only" aria-live="polite"></div>
+        </section>
+        <section id="trend" class="panel full panel-visual panel-collapsible is-open">
+          <button class="panel-toggle" type="button" aria-expanded="true" aria-controls="trend-body">
+            <span class="panel-toggle-text">
+              <span class="panel-title">Evolución</span>
+              <span class="panel-kicker">Cómo se movieron los turnos día a día.</span>
+            </span>
+            <span class="panel-toggle-icon" aria-hidden="true"></span>
+          </button>
+          <div id="trend-body" class="panel-body" role="region" aria-label="Evolución">
+            <div id="trend-content">Cargando...</div>
+            <div id="trend-callout" class="panel-callout"></div>
+            <div id="trend-announce" class="sr-only" aria-live="polite"></div>
+          </div>
+        </section>
+        <section id="heatmap" class="panel full panel-visual panel-collapsible is-open">
+          <button class="panel-toggle" type="button" aria-expanded="true" aria-controls="heatmap-body">
+            <span class="panel-toggle-text">
+              <span class="panel-title">Cuándo te buscan</span>
+              <span class="panel-kicker">En qué horas se concentra la demanda.</span>
+            </span>
+            <span class="panel-toggle-icon" aria-hidden="true"></span>
+          </button>
+          <div id="heatmap-body" class="panel-body" role="region" aria-label="Cuándo te buscan">
+            <div id="heatmap-content">Cargando...</div>
+            <div id="heatmap-callout" class="panel-callout">
+              <span id="heatmap-callout-text"></span>
+              <span id="heatmap-callout-chip" class="callout-chip"></span>
+            </div>
+            <div id="heatmap-announce" class="sr-only" aria-live="polite"></div>
+          </div>
         </section>
         <section id="filters" class="panel full panel-secondary">
           <h2>Filtros</h2>
