@@ -168,3 +168,9 @@
 - Heatmap: pasar el mouse muestra tooltip con día/hora/turnos; tocar en móvil fija tooltip y tocar afuera lo cierra.
 - Leyenda: "Menos demanda — Más demanda · pico: N".
 - No regresiones: demo=1, presets anclados a /meta, cache/dedupe y foco visible intactos.
+
+## Ticket-22 - Narrativa visual (30 segundos)
+1) Abrir https://aquizu-ivan.github.io/lumen/?demo=1
+2) Leer Hoy + Resumen + 1 lectura clave.
+3) Confirmar que "Pico principal" aparece también en Cuándo te buscan y que Evolución muestra la fecha del pico.
+4) Confirmar tooltip en heatmap y etiqueta de pico en evolución.

@@ -114,14 +114,14 @@ h1 {
 
 .grid {
   display: grid;
-  gap: 20px;
+  gap: 22px;
 }
 
 .panel {
-  padding: 18px 20px;
+  padding: 20px 22px;
   border-radius: 16px;
   background: var(--panel);
-  border: 1px solid var(--panel-border);
+  border: 1px solid rgba(31, 42, 51, 0.55);
 }
 
 .panel h2 {
@@ -130,9 +130,47 @@ h1 {
 }
 
 .panel-kicker {
-  margin: -8px 0 12px;
+  margin: 4px 0 12px;
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+.panel-callout {
+  display: none;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.panel-callout.is-visible {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.callout-secondary {
+  width: 100%;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.callout-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(76, 212, 198, 0.25);
+  background: rgba(76, 212, 198, 0.12);
+  color: var(--accent);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .panel h3 {
@@ -142,7 +180,7 @@ h1 {
 }
 
 .summary-panel {
-  border-color: rgba(76, 212, 198, 0.25);
+  border-color: rgba(76, 212, 198, 0.22);
   box-shadow: 0 0 0 1px rgba(76, 212, 198, 0.08);
 }
 
@@ -161,7 +199,7 @@ h1 {
 
 .panel-secondary {
   background: rgba(12, 16, 21, 0.65);
-  border-color: rgba(31, 42, 51, 0.6);
+  border-color: rgba(31, 42, 51, 0.45);
 }
 
 .panel-secondary h2 {
@@ -171,7 +209,7 @@ h1 {
 
 .panel-visual {
   background: rgba(12, 16, 21, 0.58);
-  border-color: rgba(31, 42, 51, 0.55);
+  border-color: rgba(31, 42, 51, 0.4);
 }
 
 .summary-header {

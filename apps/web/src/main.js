@@ -35,6 +35,10 @@ const heatmapAnnounceEl = document.getElementById("heatmap-announce");
 const insightsEl = document.getElementById("insights-content");
 const todayEl = document.getElementById("today-content");
 const systemPillEl = document.getElementById("system-pill");
+const trendCalloutEl = document.getElementById("trend-callout");
+const heatmapCalloutEl = document.getElementById("heatmap-callout");
+const heatmapCalloutTextEl = document.getElementById("heatmap-callout-text");
+const heatmapCalloutChipEl = document.getElementById("heatmap-callout-chip");
 const technicalPanelEl = document.getElementById("technical");
 const technicalSectionEl = document.getElementById("technical-section");
 
@@ -487,6 +491,32 @@ function clearEl(el) {
   }
 }
 
+function setCallout(el, build) {
+  if (!el) {
+    return;
+  }
+  clearEl(el);
+  if (typeof build === "function") {
+    build(el);
+    el.classList.add("is-visible");
+  } else {
+    el.classList.remove("is-visible");
+  }
+}
+
+function hideHeatmapCallout() {
+  if (!heatmapCalloutEl) {
+    return;
+  }
+  heatmapCalloutEl.classList.remove("is-visible");
+  if (heatmapCalloutTextEl) {
+    heatmapCalloutTextEl.textContent = "";
+  }
+  if (heatmapCalloutChipEl) {
+    heatmapCalloutChipEl.textContent = "";
+  }
+}
+
 function getSelectedServiceLabel() {
   if (!filterServiceEl || !filterServiceEl.value) {
     return "";
@@ -593,6 +623,7 @@ function showOverviewMessage(message, tone) {
 
 function showTrendMessage(message, tone) {
   clearEl(trendEl);
+  setCallout(trendCalloutEl);
   const msg = document.createElement("div");
   msg.className = "state-message";
   if (tone) {
@@ -608,6 +639,7 @@ function showTrendMessage(message, tone) {
 
 function showHeatmapMessage(message, tone) {
   clearEl(heatmapEl);
+  hideHeatmapCallout();
   const msg = document.createElement("div");
   msg.className = "state-message";
   if (tone) {
@@ -738,6 +770,17 @@ function formatDayLabel(day) {
     return "n/a";
   }
   return dayLabelMap[day] || day;
+}
+
+const weekdayShort = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+function formatDateWithDay(dateString) {
+  if (typeof dateString !== "string" || !dateRegex.test(dateString)) {
+    return dateString || "";
+  }
+  const date = new Date(`${dateString}T00:00:00Z`);
+  const day = weekdayShort[date.getUTCDay()] || "";
+  return day ? `${day} ${dateString}` : dateString;
 }
 
 function getTrendDirection(series) {
@@ -1079,6 +1122,7 @@ function renderTimeseries(data) {
     empty.textContent = "No hay datos para este rango. Probá 7d o 30d.";
     trendEl.appendChild(empty);
     announceTrend("No hay datos para este rango. Probá 7d o 30d.");
+    setCallout(trendCalloutEl);
     return;
   }
   const totals = series.map((point) =>
@@ -1086,6 +1130,10 @@ function renderTimeseries(data) {
   );
   const maxValue = Math.max(...totals, 0);
   const maxIndex = maxValue > 0 ? totals.indexOf(maxValue) : -1;
+  const peakDate =
+    maxIndex >= 0 && series[maxIndex] && typeof series[maxIndex].date === "string"
+      ? series[maxIndex].date
+      : "";
   const width = 640;
   const height = 180;
   const padding = 24;
@@ -1204,6 +1252,19 @@ function renderTimeseries(data) {
     wrapper.appendChild(note);
   }
   trendEl.appendChild(wrapper);
+  if (peakDate) {
+    setCallout(trendCalloutEl, (el) => {
+      const primary = document.createElement("span");
+      primary.textContent = `El pico coincide con: ${formatDateWithDay(peakDate)}`;
+      const secondary = document.createElement("span");
+      secondary.className = "callout-secondary";
+      secondary.textContent = `Ese pico ocurrió el: ${peakDate}`;
+      el.appendChild(primary);
+      el.appendChild(secondary);
+    });
+  } else {
+    setCallout(trendCalloutEl);
+  }
 }
 
 function renderHeatmap(data) {
@@ -1220,11 +1281,14 @@ function renderHeatmap(data) {
   const hours = heatmap && Array.isArray(heatmap.hours) ? heatmap.hours : [];
   const values = heatmap && Array.isArray(heatmap.values) ? heatmap.values : [];
   const max = heatmap && typeof heatmap.max === "number" ? heatmap.max : 0;
+  const peak = getHeatmapPeak(heatmap);
   if (days.length === 0 || hours.length === 0 || values.length === 0) {
+    hideHeatmapCallout();
     showHeatmapMessage("No hay datos para este rango. Probá 7d o 30d.", "is-empty");
     return;
   }
   if (max === 0) {
+    hideHeatmapCallout();
     showHeatmapMessage("No hay datos para este rango. Probá 7d o 30d.", "is-empty");
     return;
   }
@@ -1360,6 +1424,21 @@ function renderHeatmap(data) {
   wrapper.appendChild(legend);
   heatmapEl.appendChild(wrapper);
   attachHeatmapTooltipClose(wrapper);
+  if (peak && typeof peak.hour === "number" && peak.day) {
+    const hour = String(peak.hour).padStart(2, "0");
+    const label = `${formatDayLabel(peak.day)} ${hour}:00`;
+    if (heatmapCalloutTextEl) {
+      heatmapCalloutTextEl.textContent = `Pico principal: ${label}`;
+    }
+    if (heatmapCalloutChipEl) {
+      heatmapCalloutChipEl.textContent = `Pico: ${label}`;
+    }
+    if (heatmapCalloutEl) {
+      heatmapCalloutEl.classList.add("is-visible");
+    }
+  } else {
+    hideHeatmapCallout();
+  }
 }
 
 function setMetaLine(data) {
