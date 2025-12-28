@@ -174,3 +174,15 @@
 2) Leer Hoy + Resumen + 1 lectura clave.
 3) Confirmar que "Pico principal" aparece también en Cuándo te buscan y que Evolución muestra la fecha del pico.
 4) Confirmar tooltip en heatmap y etiqueta de pico en evolución.
+
+## Ticket-23 - Motor ECharts
+1) /lumen/?demo=1:
+   - Evolución visible con área suave + pico marcado "Pico: X turnos".
+   - Tooltip humano al pasar el mouse.
+   - Heatmap con tooltip humano y escala premium.
+2) Preset 30d + cambiar servicio:
+   - Los charts cambian sin parpadeo duro.
+3) Resize:
+   - Cambiar tamaño de ventana y confirmar ajuste de charts.
+4) No regresiones:
+   - Presets anclados a /meta, cache/dedupe intactos, técnica sigue gated por debug=1.
