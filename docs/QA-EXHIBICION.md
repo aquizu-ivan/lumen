@@ -123,3 +123,10 @@
 - Web: abrir https://aquizu-ivan.github.io/lumen/?demo=1 y ver panel Tendencia con datos.
 - Preset 30d cambia la tendencia.
 - Cambiar serviceId y confirmar que la tendencia cambia.
+
+## Ticket-16 - Presets y demo desde meta
+- curl https://lumen-lumen-api.up.railway.app/meta y observar dataset.from/to.
+- Web: abrir https://aquizu-ivan.github.io/lumen/?demo=1 y validar rango dentro de meta.from/to.
+- Presets 7d/30d siempre quedan dentro de meta.from/to y muestran datos.
+- Si el dataset es mas corto que el preset, usar rango completo.
+- Fallback: si /meta falla, presets y demo siguen funcionando sin crash.
