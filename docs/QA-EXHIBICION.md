@@ -196,3 +196,10 @@
 3) Debug:
    - Modo cliente: no aparece técnica ni en DOM.
    - Con debug=1: aparece "Información técnica" colapsada.
+
+## Cierre IAQUIZU
+- No hay duplicación del pico en Evolución ni en Cuándo te buscan (solo chip/nota mínima).
+- Acordeones: abiertos por default, hover suave, transición fluida, aria-expanded y aria-controls correctos.
+- Técnica no aparece sin debug=1.
+- Presets/demo/cache/dedupe y compartir demo siguen funcionando.
+- A11y: TAB/SHIFT+TAB, foco visible y estados anunciados sin ruido.

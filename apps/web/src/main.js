@@ -77,6 +77,7 @@ let heatmapChart = null;
 let heatmapChartEl = null;
 let heatmapWrapperEl = null;
 let heatmapLegendEl = null;
+let panelRefreshRaf = null;
 const feedbackTimeouts = new Map();
 const overviewCache = new Map();
 const overviewInflight = new Map();
@@ -630,6 +631,68 @@ function resizeCharts() {
   }
 }
 
+function refreshCollapsibleHeights() {
+  const bodies = document.querySelectorAll(".panel-collapsible.is-open .panel-body");
+  bodies.forEach((body) => {
+    body.style.maxHeight = `${body.scrollHeight}px`;
+  });
+}
+
+function schedulePanelRefresh() {
+  if (panelRefreshRaf) {
+    return;
+  }
+  panelRefreshRaf = requestAnimationFrame(() => {
+    panelRefreshRaf = null;
+    refreshCollapsibleHeights();
+  });
+}
+
+function setPanelState(panel, open) {
+  const body = panel.querySelector(".panel-body");
+  const button = panel.querySelector(".panel-toggle");
+  if (!body || !button) {
+    return;
+  }
+  if (open) {
+    panel.classList.add("is-open");
+    button.setAttribute("aria-expanded", "true");
+    body.style.maxHeight = `${body.scrollHeight}px`;
+  } else {
+    button.setAttribute("aria-expanded", "false");
+    body.style.maxHeight = `${body.scrollHeight}px`;
+    requestAnimationFrame(() => {
+      panel.classList.remove("is-open");
+      body.style.maxHeight = "0px";
+    });
+  }
+}
+
+function initCollapsibles() {
+  const panels = Array.from(document.querySelectorAll(".panel-collapsible"));
+  panels.forEach((panel) => {
+    const button = panel.querySelector(".panel-toggle");
+    const body = panel.querySelector(".panel-body");
+    if (!button || !body) {
+      return;
+    }
+    const expanded = button.getAttribute("aria-expanded") === "true";
+    if (expanded) {
+      panel.classList.add("is-open");
+      body.style.maxHeight = `${body.scrollHeight}px`;
+    } else {
+      panel.classList.remove("is-open");
+      body.style.maxHeight = "0px";
+    }
+    button.addEventListener("click", () => {
+      const isOpen = panel.classList.contains("is-open");
+      setPanelState(panel, !isOpen);
+      schedulePanelRefresh();
+    });
+  });
+  schedulePanelRefresh();
+}
+
 function getSelectedServiceLabel() {
   if (!filterServiceEl || !filterServiceEl.value) {
     return "";
@@ -670,6 +733,7 @@ function showTrendMessage(message, tone) {
     msg.classList.add("is-visible");
   });
   announceTrend(message);
+  schedulePanelRefresh();
 }
 
 function showHeatmapMessage(message, tone) {
@@ -687,6 +751,7 @@ function showHeatmapMessage(message, tone) {
     msg.classList.add("is-visible");
   });
   announceHeatmap(message);
+  schedulePanelRefresh();
 }
 
 function showInsightsMessage(message, tone) {
@@ -704,6 +769,7 @@ function showInsightsMessage(message, tone) {
   requestAnimationFrame(() => {
     msg.classList.add("is-visible");
   });
+  schedulePanelRefresh();
 }
 
 async function fetchJson(url) {
@@ -977,15 +1043,6 @@ function renderInsights() {
       ? latestOverview.noShowRate
       : 0;
   const heatmap = latestHeatmap && latestHeatmap.heatmap ? latestHeatmap.heatmap : null;
-  const peak = getHeatmapPeak(heatmap);
-  if (peak) {
-    const hour = String(peak.hour).padStart(2, "0");
-    insights.push(
-      `Pico principal: ${formatDayLabel(peak.day)} ${hour}:00 (${formatNumber(
-        peak.count
-      )} turnos)`
-    );
-  }
   const bestDay = getHeatmapBestDay(heatmap);
   if (bestDay) {
     insights.push(`Día más fuerte: ${formatDayLabel(bestDay.day)}`);
@@ -1146,6 +1203,7 @@ function renderOverview(data) {
   renderSummary();
   renderInsights();
   renderTodayNarrative();
+  schedulePanelRefresh();
 }
 
 function renderTimeseries(data) {
@@ -1287,17 +1345,16 @@ function renderTimeseries(data) {
   if (peakDate) {
     setCallout(trendCalloutEl, (el) => {
       const primary = document.createElement("span");
-      primary.textContent = `El pico coincide con: ${formatDateWithDay(peakDate)}`;
-      const secondary = document.createElement("span");
-      secondary.className = "callout-secondary";
-      secondary.textContent = `Ese pico ocurrió el: ${peakDate}`;
+      primary.textContent = `Pico del período: ${formatDateWithDay(peakDate)} (${formatNumber(
+        maxValue
+      )} turnos).`;
       el.appendChild(primary);
-      el.appendChild(secondary);
     });
   } else {
     setCallout(trendCalloutEl);
   }
   requestAnimationFrame(resizeCharts);
+  schedulePanelRefresh();
 }
 
 function renderHeatmap(data) {
@@ -1429,7 +1486,7 @@ function renderHeatmap(data) {
     const hour = String(peak.hour).padStart(2, "0");
     const label = `${formatDayLabel(peak.day)} ${hour}:00`;
     if (heatmapCalloutTextEl) {
-      heatmapCalloutTextEl.textContent = `Pico principal: ${label}`;
+      heatmapCalloutTextEl.textContent = "";
     }
     if (heatmapCalloutChipEl) {
       heatmapCalloutChipEl.textContent = `Pico: ${label}`;
@@ -1441,6 +1498,7 @@ function renderHeatmap(data) {
     hideHeatmapCallout();
   }
   requestAnimationFrame(resizeCharts);
+  schedulePanelRefresh();
 }
 
 function setMetaLine(data) {
@@ -1783,6 +1841,7 @@ async function init() {
   if (!debugMode && technicalPanelEl) {
     technicalPanelEl.remove();
   }
+  initCollapsibles();
   setDemoMode(demoFromUrl);
   const initialFilters = normalizeFilters(readFiltersFromUrl());
   if (filterFromEl) {

@@ -121,7 +121,7 @@ h1 {
 
 .grid {
   display: grid;
-  gap: 18px;
+  gap: 20px;
 }
 
 .panel {
@@ -144,6 +144,81 @@ h1 {
   margin: 4px 0 12px;
   font-size: 0.8rem;
   color: var(--muted);
+}
+
+.panel-collapsible .panel-kicker {
+  margin: 6px 0 0;
+}
+
+.panel-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  color: var(--text);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  position: relative;
+}
+
+.panel-toggle::after {
+  content: "";
+  position: absolute;
+  inset: -6px -8px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  box-shadow: 0 0 0 0 rgba(76, 212, 198, 0);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  pointer-events: none;
+}
+
+.panel-toggle:hover::after,
+.panel-toggle:focus-visible::after {
+  border-color: rgba(76, 212, 198, 0.18);
+  box-shadow: 0 0 0 1px rgba(76, 212, 198, 0.08);
+}
+
+.panel-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.panel-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.panel-toggle-icon {
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  margin-top: 6px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.panel-collapsible.is-open .panel-toggle-icon {
+  transform: rotate(-135deg);
+  border-color: var(--text);
+}
+
+.panel-body {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding-top: 0;
+  transition: max-height 0.26s ease, opacity 0.2s ease, padding-top 0.26s ease;
+}
+
+.panel-collapsible.is-open .panel-body {
+  opacity: 1;
+  padding-top: 8px;
 }
 
 .panel-callout {
@@ -182,6 +257,10 @@ h1 {
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.panel-callout span:empty {
+  display: none;
 }
 
 .panel h3 {
@@ -307,10 +386,11 @@ h1 {
 }
 
 .insights-list li {
-  margin: 6px 0;
+  margin: 8px 0;
   color: var(--text);
   position: relative;
   padding-left: 16px;
+  line-height: 1.55;
 }
 
 .insights-list li::before {
@@ -327,10 +407,11 @@ h1 {
 }
 
 .today-list li {
-  margin: 8px 0;
+  margin: 10px 0;
   padding-left: 18px;
   position: relative;
   color: var(--text);
+  line-height: 1.55;
 }
 
 .today-list li::before {
