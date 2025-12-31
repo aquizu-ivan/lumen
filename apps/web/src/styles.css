@@ -35,6 +35,30 @@ body {
   padding: 28px 20px 56px;
 }
 
+.footer--editorial {
+  padding: 24px 0 30px;
+  position: relative;
+}
+
+.footer--editorial::before {
+  content: "";
+  display: block;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  max-width: 980px;
+  margin: 0 auto 20px;
+}
+
+.footer__line {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 16px;
+  text-align: center;
+  font-size: 0.85em;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.6);
+}
+
 .hero {
   margin-bottom: 20px;
 }
@@ -963,6 +987,10 @@ ul {
 
   .grid {
     gap: 22px;
+  }
+
+  .footer__line {
+    white-space: nowrap;
   }
 }
 
